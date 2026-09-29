@@ -28,4 +28,9 @@ AEs describe the business in plain English, for example "fixes leaky pipes" or "
 3. A small boost for classes we quote often.
 
 ## Commission
-`build_data.py` stores each carrier's median commission % by policy type, taken from bound policies. If a carrier has fewer than 3 binds for a policy type, it uses the carrier's median across all lines instead. If the carrier has no bound policies at all, it uses the median from its quotes. The site sorts by commission % by default, and shows commission % × typical estimated premium as an approximate dollar amount.
+`build_data.py` sets each carrier's commission % by policy type. It uses the first of these that exists:
+1. The median from the last 6 months of quotes, which reflects current contracts.
+2. The median from bound policies. That file goes back further and includes older rates.
+3. The carrier's median across all lines.
+
+To set a rate by hand, add it to `COMMISSION_OVERRIDES` in `build_data.py`, for example `{'Chubb': {'GENERAL_LIABILITY': 35}}`. The site sorts by commission % by default.

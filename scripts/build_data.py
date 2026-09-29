@@ -86,16 +86,23 @@ for c in codes:
         k = c[:L]
         if k in titles: groups[k] = titles[k]
 if '31' in groups or any(c.startswith(('31', '32', '33')) for c in codes): groups.setdefault('31', 'Manufacturing')
-# Typical commission % per carrier and policy type, from bound policies (fallback: carrier overall, then quotes)
+# Commission % per carrier and policy type.
+# Current rates come from the last 6 months of quotes; the bound-policies file reaches further back
+# and includes older contract rates, so it is only a fallback.
+# Order: quotes (carrier + type) > bound (carrier + type) > quotes (carrier, all lines) > bound (carrier, all lines).
+# COMMISSION_OVERRIDES wins over everything: {'Carrier': {'POLICY_TYPE' or '*': pct}}
+COMMISSION_OVERRIDES = {}
+def med(g): return round(float(g.median()), 2)
+qc = q[q['Commission %'] > 0]; pc = p[p['Commission %'] > 0]
 comm = {}
-pc = p[p['Commission %'] > 0]
-for (c, t), g in pc.groupby(['Carrier', 'Policy Type'])['Commission %']:
-    if len(g) >= 3: comm.setdefault(c, {})[t] = [round(float(g.median()), 2), int(len(g))]
-for c, g in pc.groupby('Carrier')['Commission %']:
-    comm.setdefault(c, {})['*'] = [round(float(g.median()), 2), int(len(g))]
-qc = q[q['Commission %'] > 0]
-for c, g in qc.groupby('Carrier')['Commission %']:
-    if c not in comm and len(g) >= 3: comm[c] = {'*': [round(float(g.median()), 2), 0]}
+for src, tag in ((qc, 'quotes'), (pc, 'bound')):
+    for (c, t), g in src.groupby(['Carrier', 'Policy Type'])['Commission %']:
+        if len(g) >= 3 and t not in comm.get(c, {}): comm.setdefault(c, {})[t] = [med(g), int(len(g)), tag]
+for src, tag in ((qc, 'quotes'), (pc, 'bound')):
+    for c, g in src.groupby('Carrier')['Commission %']:
+        if len(g) >= 3 and '*' not in comm.get(c, {}): comm.setdefault(c, {})['*'] = [med(g), int(len(g)), tag]
+for c, d in COMMISSION_OVERRIDES.items():
+    for t, v in d.items(): comm.setdefault(c, {})[t] = [v, 0, 'set']
 out = dict(
     meta=dict(start=start.strftime('%Y-%m-%d'), end=q.ts.max().strftime('%Y-%m-%d'),
               nQuotes=int(len(q)), nPolicies=int(len(p)),
