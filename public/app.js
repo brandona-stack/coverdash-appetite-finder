@@ -179,7 +179,7 @@ function render(){
     :(a,b)=>b.bound-a.bound||order[a.tag[1]]-order[b.tag[1]]||rate(b)-rate(a)||b.priced-a.priced;
   can.sort(cmp); tough.sort(cmp);
   const card=a=>{
-    const [al,ac]=a.tag, e=a.e, uw=D.uw[a.name], br=a.priced?rate(a):null;
+    const [al,ac]=a.tag, e=a.e, uw=D.uw[a.name];
     let prem=`<div class="p-none">${haveExp?"Not enough quotes to estimate":"Enter revenue to estimate"}</div>`;
     if(e){
       const where=sameLevel(e.level)?"":` · from ${levelText(e.level)}`;
@@ -190,14 +190,10 @@ function render(){
     if(a.tooBig)flags.push(`Bigger than anything they've quoted here (max ${short(e.maxExp)} ${e.basis})`);
     else if(haveExp&&e&&e.maxExp&&(e.basis==="payroll"?S.pay:S.rev)>e.maxExp*1.25)flags.push(`Near the top of what they've quoted (max ${short(e.maxExp)})`);
     if(a.tooSmall)flags.push(`Smaller than they usually quote (min ${short(e.minExp)})`);
-    const outc=[]; if(a.refer)outc.push(`${a.refer} referred`); if(a.decl)outc.push(`${a.decl} declined`);
     return `<div class="crow">
       <div class="car">${esc(a.name)}${uw?`<div class="uw">via ${uw.map(esc).join(", ")}</div>`:""}
         <div class="tags"><span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div></div>
       <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${a.comm!=null?`<div class="comm"><strong>${+a.comm.toFixed(1)}%</strong> commission${a.commAmt?` · about ${money(a.commAmt)}`:""}${a.commAll?` <span class="small">(all lines)</span>`:""}</div>`:""}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
-      <div class="rec"><span class="cell-label">Track record</span>
-        <div><strong>${a.bound}</strong> bound${br!=null?` · ${pct(br)} bind rate`:""}</div>
-        <div class="small">${a.subs.toLocaleString()} quoted${outc.length?` · ${outc.join(" · ")}`:""}${a.last>=0?` · last ${fmtDate(dayToDate(a.last))}`:""}</div></div>
     </div>`;
   };
   const LIMIT=12;
