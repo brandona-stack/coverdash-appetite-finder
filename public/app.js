@@ -66,23 +66,26 @@ function readHash(){
 // ---- Class search --------------------------------------------------------
 function setupCombo(){
   const inp=$("cls"), list=$("clsList"); let items=[], act=-1;
-  const all=D.naics.filter(n=>n[2]>0).sort((a,b)=>b[2]-a[2]);
+  NaicsSearch.build(D.naics);
+  const loadModel=()=>NaicsSearch.load("naics-model.json").then(()=>{ if(!list.hidden&&inp.value.trim())show(); });
+  let deb;
   function show(){
-    const q=inp.value.trim().toLowerCase(); const words=q.split(/\s+/).filter(Boolean);
-    items=(q?all.filter(n=>words.every(w=>n[0].startsWith(w)||n[1].toLowerCase().includes(w))):all).slice(0,40);
+    const q=inp.value.trim();
+    items=NaicsSearch.search(q,q&&!/^\d+$/.test(q)?10:40).map(e=>[e.code,e.title,e.count]);
     act=-1;
-    list.innerHTML=items.length?items.map((n,i)=>`<li role="option" data-i="${i}"><span class="code">${n[0]}</span><span class="t">${esc(n[1])}</span><span class="c">${n[2].toLocaleString()}</span></li>`).join("")
-      :`<li class="none">No classes match "${esc(inp.value)}"</li>`;
+    const hint=!q?`<li class="hint">Describe what the business does, like "fixes leaky pipes" or "sells candles online". You can also type a NAICS code.</li>`:"";
+    list.innerHTML=hint+(items.length?items.map((n,i)=>`<li role="option" data-i="${i}" class="${n[2]?"":"dim"}"><span class="code">${n[0]}</span><span class="t">${esc(n[1])}</span><span class="c">${n[2]?n[2].toLocaleString()+" quoted":"no quotes yet"}</span></li>`).join("")
+      :`<li class="none">No classes match "${esc(q)}". Try describing it another way.</li>`);
     list.hidden=false; inp.setAttribute("aria-expanded","true");
   }
   function pick(n){ S.code=n?n[0]:""; S.prefix=S.code; inp.value=n?`${n[0]} · ${n[1]}`:""; $("clsClear").hidden=!n; hide(); showAll=false; render(); }
   function hide(){ list.hidden=true; inp.setAttribute("aria-expanded","false"); }
-  inp.addEventListener("focus",()=>{inp.select();show()});
-  inp.addEventListener("input",show);
+  inp.addEventListener("focus",()=>{inp.select();loadModel();show()});
+  inp.addEventListener("input",()=>{clearTimeout(deb);deb=setTimeout(show,120)});
   inp.addEventListener("keydown",e=>{
     const lis=[...list.querySelectorAll("li[data-i]")];
     if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(list.hidden)show();act=Math.max(0,Math.min(lis.length-1,act+(e.key==="ArrowDown"?1:-1)));lis.forEach((l,i)=>l.classList.toggle("act",i===act));lis[act]&&lis[act].scrollIntoView({block:"nearest"})}
-    else if(e.key==="Enter"){e.preventDefault();if(items[act>=0?act:0])pick(items[act>=0?act:0])}
+    else if(e.key==="Enter"){e.preventDefault();if(act<0){clearTimeout(deb);show()}if(items[act>=0?act:0])pick(items[act>=0?act:0])}
     else if(e.key==="Escape"){hide();inp.blur()}
   });
   list.addEventListener("mousedown",e=>{const li=e.target.closest("li[data-i]");if(li){e.preventDefault();pick(items[+li.dataset.i])}});

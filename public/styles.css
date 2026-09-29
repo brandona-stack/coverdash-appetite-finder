@@ -33,11 +33,14 @@ input::placeholder{color:#94A3B8}
 .combo input{padding-right:32px}
 .clear{position:absolute;right:8px;top:31px;border:0;background:transparent;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:4px}
 .combo-list{position:absolute;z-index:20;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(26,43,74,.14);max-height:320px;overflow:auto}
-.combo-list li{display:grid;grid-template-columns:62px 1fr auto;gap:8px;align-items:baseline;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:14px}
+.combo-list li{display:grid;grid-template-columns:58px 1fr auto;gap:8px;align-items:baseline;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:14px}
 .combo-list li:hover,.combo-list li.act{background:var(--soft)}
 .combo-list .code{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
 .combo-list .c{font-size:12px;color:var(--muted)}
-.combo-list li.none{display:block;color:var(--muted);cursor:default}
+.combo-list li.none,.combo-list li.hint{display:block;color:var(--muted);cursor:default;font-size:13px}
+.combo-list li.hint{border-bottom:1px solid var(--line);border-radius:0;margin-bottom:4px}
+.combo-list li.dim .t{color:var(--muted)}
+.combo-list .c{white-space:nowrap}
 .field label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
 select{width:100%;appearance:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%231A2B4A' stroke-width='1.6'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;border:1px solid #CBD5E1;border-radius:8px;padding:10px 34px 10px 12px;font:inherit;color:var(--ink);cursor:pointer}
 select:focus{outline:2px solid var(--green);outline-offset:1px;border-color:var(--green)}

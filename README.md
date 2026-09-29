@@ -20,3 +20,9 @@ Enter a policy type, state, class (NAICS), revenue, payroll and subcontracted %.
 - Above 25% sub, these standard carriers are removed: The Hartford, Chubb, Acuity, Travelers, Hiscox, CNA, biBerk, Nationwide, Employers, Guard, Hanover, Amtrust, Three by Berkshire, Markel and Great American.
 - Coterie is allowed up to 50%.
 - To change either rule, edit `RULES`.
+
+## Class search (`public/naics-search.js`)
+AEs describe the business in plain English, for example "fixes leaky pipes" or "sells candles on Etsy." Results are ranked by blending three signals:
+1. The US Census Bureau's BEACON description-to-NAICS model. It comes from the MIT-licensed JS port in `@cajuncodemonkey/naics-search`, trimmed to single words (`public/naics-model.json`, about 300 KB gzipped). It's loaded only when someone clicks into the box.
+2. Word matches against NAICS titles and Coverdash's own everyday terms (`SYNONYMS` in the same file). Add phrases there when AEs search for something and the right class doesn't come up.
+3. A small boost for classes we quote often.

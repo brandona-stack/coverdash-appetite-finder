@@ -36,8 +36,8 @@
         <select id="st"></select>
       </div>
       <div class="field combo">
-        <label for="cls">Class (NAICS)</label>
-        <input id="cls" type="text" autocomplete="off" placeholder="Search by name or code, e.g. plumbing or 238220" role="combobox" aria-expanded="false" aria-controls="clsList">
+        <label for="cls">What does the business do?</label>
+        <input id="cls" type="text" autocomplete="off" placeholder="Describe the business, e.g. fixes leaky pipes" role="combobox" aria-expanded="false" aria-controls="clsList">
         <button type="button" class="clear" id="clsClear" aria-label="Clear class" hidden>×</button>
         <ul id="clsList" class="combo-list" role="listbox" hidden></ul>
       </div>
@@ -100,6 +100,7 @@
 <footer class="wrap foot">Built from Coverdash quote and bound policy data. Estimates come from our past quotes, not carrier rating. Confirm eligibility and pricing with the carrier before you present anything to a client.</footer>
 
 <script src="engine.js"></script>
+<script src="naics-search.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

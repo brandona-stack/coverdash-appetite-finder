@@ -78,6 +78,8 @@ def title(c):
         if c[:L] in titles: return titles[c[:L]]
     return c
 naics = [[c, title(c), int(counts.get(c, 0))] for c in codes]
+# every other 6-digit class (2017 + 2022) so AEs can pick a class we haven't quoted yet
+naics += [[c, t, 0] for c, t in sorted(titles.items()) if len(c) == 6 and c not in NC]
 groups = {}
 for c in codes:
     for L in (2, 3, 4):
