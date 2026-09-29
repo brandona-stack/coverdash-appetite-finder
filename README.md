@@ -4,8 +4,7 @@ Look up which carriers have quoted and bound a given **policy type + state + ind
 
 ## Deploy on Vercel
 1. Import this repo in Vercel (Add New → Project). There's no build step and no framework to pick.
-2. Under Settings → Environment Variables, add `APPETITE_PASSWORD` with the team password, then redeploy.
-3. Share the URL. Users see a browser login prompt: any username works, and only the password is checked.
+2. Share the URL. The site is public (no password) but is marked noindex so search engines skip it.
 
 ## Refreshing the data
 1. Export fresh `quotes_in_last_180_days.csv` and `policies_bound_in_last_180_days.xlsx`.
