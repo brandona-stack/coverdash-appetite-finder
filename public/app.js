@@ -19,7 +19,7 @@ const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
 const short=n=>n>=1e6?"$"+(n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,"")+"M":n>=1e3?"$"+Math.round(n/1e3)+"K":"$"+Math.round(n);
 const pct=x=>Math.round(x*100)+"%";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let D=null, S={pt:null,st:"*",code:"",prefix:"",rev:0,pay:0,sub:0}, showAll=false, sort="comm", day0=null;
+let D=null, S={pt:null,st:"*",code:"",prefix:"",rev:0,pay:0,sub:0}, showAll=false, sort="comm", day0=null, RULES=null;
 
 fetch("appetite-data.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=Engine.prepare(d);init()})
   .catch(()=>{$("summary").innerHTML='<div class="notice">Could not load the data. Refresh the page to try again.</div>'});
@@ -45,10 +45,14 @@ function init(){
     $(id).closest(".field").classList.toggle("bad",isNaN(v)||(max&&v>max)); if(!isNaN(v)&&!(max&&v>max)){S[key]=v;render()}},250)});
   num("rev","rev"); num("pay","pay"); num("sub","sub",100);
   ["rev","pay"].forEach(id=>$(id).addEventListener("blur",()=>{const v=parseAmt($(id).value);if(v>0)$(id).value=v.toLocaleString()}));
-  document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{sort=b.dataset.sort;render()});
+  document.querySelectorAll("#resultsHead .seg button").forEach(b=>b.onclick=()=>{sort=b.dataset.sort;render()});
   setupCombo();
   window.addEventListener("hashchange",()=>{readHash();render()});
   render();
+  loadRules();
+}
+function loadRules(){
+  return fetch("api/rules",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{ if(j&&Array.isArray(j.rules)){RULES=j.rules;render();} }).catch(()=>{});
 }
 
 function readHash(){
@@ -118,7 +122,10 @@ function render(){
 
   // Sub % rules
   const excluded=[], rows=[];
-  for(const a of A.rows){ const name=D.carriers[a.c]; const lim=Engine.maxSubFor(name); (S.sub>lim?excluded:rows).push(Object.assign(a,{name,lim})); }
+  const ctx={pt:S.pt,st:S.st,code:S.prefix,rev:S.rev,sub:S.sub};
+  for(const a of A.rows){ const name=D.carriers[a.c]; const rr=Engine.applyRules(RULES,name,ctx);
+    Object.assign(a,{name,lim:rr.lim,ruleNotes:rr.notes,prefer:rr.prefer,ruleComm:rr.comm,why:rr.exclude});
+    (rr.exclude?excluded:rows).push(a); }
 
   // Split carriers into "can write this" and "tough fit"
   const rate=a=>a.priced?Math.min(Math.max(a.boundQ,a.bound),a.priced)/a.priced:0;
@@ -129,6 +136,7 @@ function render(){
     r.tooSmall=haveExp&&r.e&&r.e.minExp&&X<r.e.minExp/2;
     const cm=D.comm[r.name]; const cv=cm&&(cm[S.pt]||cm["*"]);
     r.comm=cv?cv[0]:null; r.commAll=!!(cm&&!cm[S.pt]&&cm["*"]);
+    if(r.ruleComm!=null){r.comm=r.ruleComm;r.commAll=false;r.commRule=true;}
     r.commAmt=r.comm!=null&&r.e?r.e.mid*r.comm/100:null;
     r.fit=(r.tag[1]==="b-refers"||r.tag[1]==="b-declines"||r.tooBig)?"tough":"can";
   }
@@ -164,20 +172,21 @@ function render(){
   if(!A.rows.length) n.push(`<div class="notice">No quotes for this combination yet. That doesn't mean carriers won't write it, only that we haven't tried. ${broaden.join("")}</div>`);
   else if(A.subs<10) n.push(`<div class="notice">Only ${A.subs} ${A.subs===1?"business":"businesses"} quoted here, so treat this as a rough read. ${broaden.join("")}</div>`);
   else if(S.prefix!==S.code) n.push(`<div class="notice info">Showing the wider group ${S.prefix}. ${broaden.join("")}</div>`);
-  if(S.sub>25) n.push(`<div class="notice warn">${S.sub}% subcontracted: standard carriers are removed${S.sub>50?", including Coterie (its limit is 50%)":". Coterie stays in up to 50%"}.</div>`);
+  if(excluded.length) n.push(`<div class="notice warn">${excluded.length} carrier${excluded.length===1?" was":"s were"} removed by rules for this search. They're listed below the results.</div>`);
   $("notice").innerHTML=n.join("");
   $("notice").querySelectorAll("button[data-act]").forEach(b=>b.onclick=()=>{const [k,v]=b.dataset.act.split(":");if(k==="st"){S.st=v;$("st").value=v}else S.prefix=v;showAll=false;render()});
 
   // Carrier list
   $("resultsHead").hidden=!rows.length;
-  document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.sort===sort));
+  document.querySelectorAll("#resultsHead .seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.sort===sort));
   const order={"b-proven":0,"b-bound":1,"b-quotes":2,"b-refers":3,"b-declines":4};
   const cmp=sort==="price"
     ?(a,b)=>(a.e?a.e.mid:Infinity)-(b.e?b.e.mid:Infinity)||b.bound-a.bound
     :sort==="comm"
     ?(a,b)=>(b.comm??-1)-(a.comm??-1)||(b.commAmt??-1)-(a.commAmt??-1)||b.bound-a.bound
     :(a,b)=>b.bound-a.bound||order[a.tag[1]]-order[b.tag[1]]||rate(b)-rate(a)||b.priced-a.priced;
-  can.sort(cmp); tough.sort(cmp);
+  const pcmp=(a,b)=>(b.prefer?1:0)-(a.prefer?1:0)||cmp(a,b);
+  can.sort(pcmp); tough.sort(pcmp);
   const card=a=>{
     const [al,ac]=a.tag, e=a.e, uw=D.uw[a.name];
     let prem=`<div class="p-none">${haveExp?"Not enough quotes to estimate":"Enter revenue to estimate"}</div>`;
@@ -192,8 +201,9 @@ function render(){
     if(a.tooSmall)flags.push(`Smaller than they usually quote (min ${short(e.minExp)})`);
     return `<div class="crow">
       <div class="car">${esc(a.name)}${uw?`<div class="uw">via ${uw.map(esc).join(", ")}</div>`:""}
-        <div class="tags"><span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div></div>
-      <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${a.comm!=null?`<div class="comm"><strong>${+a.comm.toFixed(1)}%</strong> commission${a.commAmt?` · about ${money(a.commAmt)}`:""}${a.commAll?` <span class="small">(all lines)</span>`:""}</div>`:""}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
+        <div class="tags">${a.prefer?`<span class="badge b-pref">Preferred</span>`:""}<span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div>
+        ${(a.ruleNotes||[]).map(t=>`<div class="rnote">${esc(t)}</div>`).join("")}</div>
+      <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${a.comm!=null?`<div class="comm"><strong>${+a.comm.toFixed(1)}%</strong> commission${a.commAmt?` · about ${money(a.commAmt)}`:""}${a.commAll?` <span class="small">(all lines)</span>`:""}${a.commRule?` <span class="small">(set by rule)</span>`:""}</div>`:""}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
     </div>`;
   };
   const LIMIT=12;
@@ -205,6 +215,15 @@ function render(){
   $("results").innerHTML=html;
   $("results").style.display=html?"":"none";
   const mb=$("moreBtn"); if(mb)mb.onclick=()=>{showAll=!showAll;render()};
-  $("excluded").innerHTML=excluded.length?`<div class="excl"><strong>Removed for ${S.sub}% sub:</strong> ${excluded.sort((a,b)=>b.bound-a.bound).map(a=>`${esc(a.name)} <span class="small">(max ${a.lim}%)</span>`).join(", ")}</div>`:"";
+  $("excluded").innerHTML=excluded.length?`<div class="excl"><strong>Removed by rules:</strong> ${excluded.sort((a,b)=>b.bound-a.bound).map(a=>`${esc(a.name)} <span class="small">(${esc(a.why)})</span>`).join(", ")}</div>`:"";
 }
+// Shared with admin.js
+window.AF={
+  get D(){return D}, get S(){return S}, get rules(){return RULES},
+  setRules(r){RULES=r;render();}, reloadRules:loadRules, render:()=>render(),
+  ptLabel, stLabel, title, money, short, esc, STATES,
+  searchSummary(){ if(!D)return null; const cls=S.code?`${S.code} · ${title(S.code)}`:"";
+    return {pt:S.pt,st:S.st==="*"?"":S.st,code:S.code,cls,rev:S.rev,pay:S.pay,sub:S.sub,link:location.origin+location.pathname+location.hash,
+      text:[ptLabel(S.pt),S.st==="*"?"all states":S.st,cls||"all classes",S.rev?short(S.rev)+" revenue":"",S.pay?short(S.pay)+" payroll":"",S.sub?S.sub+"% sub":""].filter(Boolean).join(" · ")}; },
+};
 })();

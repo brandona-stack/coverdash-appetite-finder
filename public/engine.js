@@ -3,16 +3,47 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.Engine = factory();
 })(this, function () {
-  // ---- Carrier rules for subcontracted work -------------------------------
-  // Above STANDARD_MAX_SUB %, standard carriers are excluded.
-  // Coterie is the one standard carrier that will consider up to COTERIE_MAX_SUB %.
-  const RULES = {
-    STANDARD_CARRIERS: ['The Hartford', 'Chubb', 'Acuity', 'Travelers', 'Hiscox', 'CNA', 'biBerk by Berkshire Hathaway',
-      'Nationwide', 'Employers', 'Guard', 'Hanover Insurance', 'Amtrust', 'Three by Berkshire Hathaway', 'Markel',
-      'Great American Insurance Group', 'Coterie'],
-    STANDARD_MAX_SUB: 25,
-    EXCEPTIONS: { 'Coterie': 50 },
-  };
+  // ---- Built-in rules ---------------------------------------------------------
+  // Used until someone saves rules from the Rules tab; after that the saved list replaces these.
+  const STANDARD = ['The Hartford', 'Chubb', 'Acuity', 'Travelers', 'Hiscox', 'CNA', 'biBerk by Berkshire Hathaway',
+    'Nationwide', 'Employers', 'Guard', 'Hanover Insurance', 'Amtrust', 'Three by Berkshire Hathaway', 'Markel',
+    'Great American Insurance Group'];
+  const DEFAULT_RULES = [
+    { id: 'std-sub', type: 'sublimit', carriers: STANDARD, value: 25, note: 'Standard carriers: up to 25% sub', active: true, pts: [], states: [], naics: [] },
+    { id: 'coterie-sub', type: 'sublimit', carriers: ['Coterie'], value: 50, note: 'Coterie considers up to 50% sub', active: true, pts: [], states: [], naics: [] },
+  ];
+
+  // Does a rule apply to this carrier and search?  ctx: {pt, st, code, rev, sub}
+  function ruleMatches(r, carrier, ctx) {
+    if (r.active === false) return false;
+    if (!(r.carriers || []).some(c => c === '*' || c === carrier)) return false;
+    if (r.pts && r.pts.length && !r.pts.includes(ctx.pt)) return false;
+    if (r.states && r.states.length && !r.states.includes(ctx.st)) return false;
+    if (r.naics && r.naics.length && !(ctx.code && r.naics.some(n => ctx.code.startsWith(n)))) return false;
+    if (r.subOver != null && !(ctx.sub > r.subOver)) return false;
+    if (r.revOver != null && !(ctx.rev > r.revOver)) return false;
+    if (r.revUnder != null && !(ctx.rev > 0 && ctx.rev < r.revUnder)) return false;
+    return true;
+  }
+  // More specific rules win: fewer carriers, then more conditions.
+  const specificity = r => -((r.carriers || []).includes('*') ? 1e6 : (r.carriers || []).length) * 10 +
+    ['pts', 'states', 'naics'].filter(k => r[k] && r[k].length).length + (r.subOver != null) + (r.revOver != null) + (r.revUnder != null);
+
+  // Everything the rules say about one carrier for this search.
+  function applyRules(rules, carrier, ctx) {
+    const hit = (rules || DEFAULT_RULES).filter(r => ruleMatches(r, carrier, ctx));
+    const best = type => hit.filter(r => r.type === type).sort((a, b) => specificity(b) - specificity(a))[0];
+    const out = { lim: Infinity, comm: null, notes: [], prefer: false, exclude: null };
+    const sl = best('sublimit'); if (sl && sl.value != null) out.lim = sl.value;
+    const cm = best('commission'); if (cm && cm.value != null) out.comm = cm.value;
+    const ex = hit.find(r => r.type === 'exclude'); if (ex) out.exclude = ex.note || 'Excluded by a rule';
+    if (!out.exclude && ctx.sub > out.lim) out.exclude = `Allows up to ${out.lim}% sub`;
+    for (const r of hit) {
+      if (r.type === 'note' && r.note) out.notes.push(r.note);
+      if (r.type === 'prefer') { out.prefer = true; if (r.note) out.notes.push(r.note); }
+    }
+    return out;
+  }
 
   // ---- Tuning ---------------------------------------------------------------
   const T = {
@@ -37,12 +68,6 @@
   }
 
   const prefixOk = (D, idx, prefix) => !prefix || D.code[idx].startsWith(prefix);
-
-  function maxSubFor(carrier) {
-    if (carrier in RULES.EXCEPTIONS) return RULES.EXCEPTIONS[carrier];
-    if (RULES.STANDARD_CARRIERS.includes(carrier)) return RULES.STANDARD_MAX_SUB;
-    return Infinity;
-  }
 
   // Appetite stats for one search. prefix = NAICS prefix ('' = all classes). st = state or '*'.
   function appetite(D, { pt, st, prefix }) {
@@ -140,5 +165,5 @@
     return Math.round(s[lo] + (s[hi] - s[lo]) * (pos - lo));
   }
 
-  return { RULES, prepare, appetite, indicate, maxSubFor, levels, quant, T };
+  return { DEFAULT_RULES, STANDARD, applyRules, ruleMatches, prepare, appetite, indicate, levels, quant, T };
 });

@@ -22,9 +22,14 @@
       </div>
     </div>
   </div>
+  <nav class="tabs wrap" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" data-tab="find" aria-selected="true">Find carriers</button>
+    <button type="button" role="tab" data-tab="feedback" aria-selected="false">Feedback</button>
+    <button type="button" role="tab" data-tab="rules" aria-selected="false"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Rules</button>
+  </nav>
 </header>
 
-<main class="wrap">
+<main class="wrap view" id="view-find">
   <section class="search card" aria-label="Search">
     <div class="grid3">
       <div class="field">
@@ -62,7 +67,7 @@
   <section id="notice"></section>
 
   <section class="results-head" id="resultsHead" hidden>
-    <h2 id="resultsTitle">Carriers</h2>
+    <div><h2 id="resultsTitle">Carriers</h2><button type="button" class="linkbtn" id="fbFromResults">Something look off? Send feedback</button></div>
     <div class="seg" role="group" aria-label="Sort">
       <button type="button" data-sort="comm" aria-pressed="true">Best commission</button>
       <button type="button" data-sort="bound" aria-pressed="false">Best fit</button>
@@ -89,12 +94,75 @@
     </dl>
     <h3>Subcontracted work</h3>
     <p>Most of the quotes behind these estimates are for accounts with little or no subcontracted work. Expect real quotes on high-sub accounts to come in above the estimate, especially for GL.</p>
-    <p>Above 25% sub, standard carriers are removed: The Hartford, Chubb, Acuity, Travelers, Hiscox, CNA, biBerk, Nationwide, Employers, Guard, Hanover, Amtrust, Three by Berkshire, Markel and Great American. Coterie considers up to 50%. The removed carriers are listed under the table.</p>
+    <p>Carrier rules, such as sub % limits, exclusions, commission overrides and notes, are managed in the <strong>Rules</strong> tab. By default, standard carriers allow up to 25% sub and Coterie allows up to 50%. Carriers a rule removes are listed below the results, with the reason.</p>
     <h3>Can write this vs. tough fit</h3>
     <p>A carrier is a <strong>tough fit</strong> when it mostly refers or declines this class, or when the account is more than twice the size of anything it has quoted here. Every other carrier that has quoted this class is listed under <strong>Can write this</strong>. The big range at the top runs from the cheapest carrier's typical estimate to the priciest carrier's.</p>
     <h3>Commission</h3>
-    <p>Commission % is the carrier's current rate for this policy type, taken from the last 6 months of quotes. If there aren't enough quotes, it falls back to the rate on policies we've bound. Rates set by hand in the build script override both. When a policy type has too little data, the tool uses the carrier's rate across all lines and labels it that way. The dollar amount is that % × the carrier's typical estimated premium. <strong>Best commission</strong> is the default sort. It ranks carriers by commission %, then by commission dollars, and it still keeps tough fits in their own section.</p>
+    <p>Commission % is the carrier's current rate for this policy type, taken from the last 6 months of quotes. If there aren't enough quotes, it falls back to the rate on policies we've bound. Commission rules set in the Rules tab override both. When a policy type has too little data, the tool uses the carrier's rate across all lines and labels it that way. The dollar amount is that % × the carrier's typical estimated premium. <strong>Best commission</strong> is the default sort. It ranks carriers by commission %, then by commission dollars, and it still keeps tough fits in their own section.</p>
   </details>
+</main>
+
+<main class="wrap view" id="view-feedback" hidden>
+  <section class="card panel">
+    <h2>Tell us what worked and what didn't</h2>
+    <p class="muted">Feedback goes to the team that maintains this tool. Wrong carrier, a premium that was way off, a class you couldn't find: it all helps.</p>
+    <form id="fbForm" novalidate>
+      <div class="field">
+        <label>How did it go?</label>
+        <div class="seg big" role="group" aria-label="How did it go">
+          <button type="button" data-verdict="worked" aria-pressed="false">It worked</button>
+          <button type="button" data-verdict="didnt" aria-pressed="false">Something didn't work</button>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="fbTopic">What's it about?</label>
+          <select id="fbTopic">
+            <option value="appetite">Carriers listed (wrong or missing carrier)</option>
+            <option value="premium">Premium estimate</option>
+            <option value="class">Finding the right class</option>
+            <option value="commission">Commission</option>
+            <option value="rules">Sub % or other rules</option>
+            <option value="idea">Idea or request</option>
+            <option value="other">Something else</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fbName">Your name (optional)</label>
+          <input id="fbName" type="text" maxlength="80" autocomplete="name">
+        </div>
+      </div>
+      <div class="field">
+        <label for="fbMsg">What happened?</label>
+        <textarea id="fbMsg" rows="5" maxlength="2000" placeholder="e.g. Pathpoint quoted this roofer at $4,200, but the tool estimated $11,700. Or: Hartford declined this class, so it shouldn't show as 'can write this'."></textarea>
+      </div>
+      <label class="check"><input type="checkbox" id="fbAttach" checked> Attach my current search <span class="muted" id="fbSearchSummary"></span></label>
+      <div class="actions"><button type="submit" class="btn primary" id="fbSend">Send feedback</button><span id="fbStatus" class="status" role="status"></span></div>
+    </form>
+  </section>
+</main>
+
+<main class="wrap view" id="view-rules" hidden>
+  <section class="card panel" id="rulesLock">
+    <h2>Rules</h2>
+    <p class="muted">Only people with the passcode can view and change rules or read feedback.</p>
+    <form id="lockForm" class="lock">
+      <input id="passcode" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode">
+      <button type="submit" class="btn primary">Unlock</button>
+      <span id="lockStatus" class="status" role="status"></span>
+    </form>
+  </section>
+  <section id="rulesAdmin" hidden>
+    <div class="admin-head">
+      <div class="seg" role="group" aria-label="Admin section">
+        <button type="button" data-admin="rules" aria-pressed="true">Rules</button>
+        <button type="button" data-admin="inbox" aria-pressed="false">Feedback inbox <span id="inboxCount"></span></button>
+      </div>
+      <button type="button" class="linkbtn" id="lockBtn">Lock</button>
+    </div>
+    <div id="adminRules"></div>
+    <div id="adminInbox" hidden></div>
+  </section>
 </main>
 
 <footer class="wrap foot">Built from Coverdash quote and bound policy data. Estimates come from our past quotes, not carrier rating. Confirm eligibility and pricing with the carrier before you present anything to a client.</footer>
@@ -102,5 +170,6 @@
 <script src="engine.js"></script>
 <script src="naics-search.js"></script>
 <script src="app.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
