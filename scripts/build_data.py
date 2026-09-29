@@ -86,11 +86,21 @@ for c in codes:
         k = c[:L]
         if k in titles: groups[k] = titles[k]
 if '31' in groups or any(c.startswith(('31', '32', '33')) for c in codes): groups.setdefault('31', 'Manufacturing')
+# Typical commission % per carrier and policy type, from bound policies (fallback: carrier overall, then quotes)
+comm = {}
+pc = p[p['Commission %'] > 0]
+for (c, t), g in pc.groupby(['Carrier', 'Policy Type'])['Commission %']:
+    if len(g) >= 3: comm.setdefault(c, {})[t] = [round(float(g.median()), 2), int(len(g))]
+for c, g in pc.groupby('Carrier')['Commission %']:
+    comm.setdefault(c, {})['*'] = [round(float(g.median()), 2), int(len(g))]
+qc = q[q['Commission %'] > 0]
+for c, g in qc.groupby('Carrier')['Commission %']:
+    if c not in comm and len(g) >= 3: comm[c] = {'*': [round(float(g.median()), 2), 0]}
 out = dict(
     meta=dict(start=start.strftime('%Y-%m-%d'), end=q.ts.max().strftime('%Y-%m-%d'),
               nQuotes=int(len(q)), nPolicies=int(len(p)),
               ptCounts=best.groupby('Policy Type').biz.nunique().to_dict()),
-    pts=pts, states=sts, carriers=cars, naics=naics, groups=groups, uw=uw,
+    pts=pts, states=sts, carriers=cars, naics=naics, groups=groups, uw=uw, comm=comm,
     Q=Q, P=P)
 json.dump(out, open(os.path.join(ROOT, 'public/appetite-data.json'), 'w'), separators=(',', ':'))
 print('quote records', len(Q), 'policy records', len(P), 'codes', len(codes))

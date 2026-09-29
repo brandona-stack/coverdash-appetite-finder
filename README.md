@@ -26,3 +26,6 @@ AEs describe the business in plain English, for example "fixes leaky pipes" or "
 1. The US Census Bureau's BEACON description-to-NAICS model. It comes from the MIT-licensed JS port in `@cajuncodemonkey/naics-search`, trimmed to single words (`public/naics-model.json`, about 300 KB gzipped). It's loaded only when someone clicks into the box.
 2. Word matches against NAICS titles and Coverdash's own everyday terms (`SYNONYMS` in the same file). Add phrases there when AEs search for something and the right class doesn't come up.
 3. A small boost for classes we quote often.
+
+## Commission
+`build_data.py` stores each carrier's median commission % by policy type, taken from bound policies. If a carrier has fewer than 3 binds for a policy type, it uses the carrier's median across all lines instead. If the carrier has no bound policies at all, it uses the median from its quotes. The site sorts by commission % by default, and shows commission % × typical estimated premium as an approximate dollar amount.

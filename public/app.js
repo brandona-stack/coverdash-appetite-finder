@@ -19,7 +19,7 @@ const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
 const short=n=>n>=1e6?"$"+(n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,"")+"M":n>=1e3?"$"+Math.round(n/1e3)+"K":"$"+Math.round(n);
 const pct=x=>Math.round(x*100)+"%";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let D=null, S={pt:null,st:"*",code:"",prefix:"",rev:0,pay:0,sub:0}, showAll=false, sort="bound", day0=null;
+let D=null, S={pt:null,st:"*",code:"",prefix:"",rev:0,pay:0,sub:0}, showAll=false, sort="comm", day0=null;
 
 fetch("appetite-data.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=Engine.prepare(d);init()})
   .catch(()=>{$("summary").innerHTML='<div class="notice">Could not load the data. Refresh the page to try again.</div>'});
@@ -127,10 +127,14 @@ function render(){
     const X=r.e&&(r.e.basis==="payroll"?S.pay:S.rev);
     r.tooBig=haveExp&&r.e&&r.e.maxExp&&X>r.e.maxExp*2;
     r.tooSmall=haveExp&&r.e&&r.e.minExp&&X<r.e.minExp/2;
+    const cm=D.comm[r.name]; const cv=cm&&(cm[S.pt]||cm["*"]);
+    r.comm=cv?cv[0]:null; r.commAll=!!(cm&&!cm[S.pt]&&cm["*"]);
+    r.commAmt=r.comm!=null&&r.e?r.e.mid*r.comm/100:null;
     r.fit=(r.tag[1]==="b-refers"||r.tag[1]==="b-declines"||r.tooBig)?"tough":"can";
   }
   const can=rows.filter(r=>r.fit==="can"), tough=rows.filter(r=>r.fit==="tough");
   const withEst=can.filter(r=>r.e);
+  const bestComm=can.filter(r=>r.comm!=null).sort((a,b)=>b.comm-a.comm||(b.commAmt??0)-(a.commAmt??0))[0];
   const mids=withEst.map(r=>r.e.mid).sort((x,y)=>x-y);
   const [sl,sn]=strength(A.subs);
   const expTxt=haveExp?`${short(expLabel==="payroll"?S.pay:S.rev)} ${expLabel}`:"";
@@ -145,6 +149,7 @@ function render(){
       <div class="a-side">
         <div><span class="n">${A.subs.toLocaleString()}</span> businesses quoted</div>
         <div><span class="n">${A.bound.toLocaleString()}</span> bound${A.boundMed?` · median ${money(A.boundMed)}`:""}</div>
+        ${bestComm?`<div>Best commission: <span class="n">${esc(bestComm.name)} ${+bestComm.comm.toFixed(1)}%</span></div>`:""}
         <div class="strength"><span class="dots">${[1,2,3].map(i=>`<i class="${i<=sn?"on":""}"></i>`).join("")}</span>${sl} data</div>
       </div>
     </div>`:"";
@@ -169,6 +174,8 @@ function render(){
   const order={"b-proven":0,"b-bound":1,"b-quotes":2,"b-refers":3,"b-declines":4};
   const cmp=sort==="price"
     ?(a,b)=>(a.e?a.e.mid:Infinity)-(b.e?b.e.mid:Infinity)||b.bound-a.bound
+    :sort==="comm"
+    ?(a,b)=>(b.comm??-1)-(a.comm??-1)||(b.commAmt??-1)-(a.commAmt??-1)||b.bound-a.bound
     :(a,b)=>b.bound-a.bound||order[a.tag[1]]-order[b.tag[1]]||rate(b)-rate(a)||b.priced-a.priced;
   can.sort(cmp); tough.sort(cmp);
   const card=a=>{
@@ -187,7 +194,7 @@ function render(){
     return `<div class="crow">
       <div class="car">${esc(a.name)}${uw?`<div class="uw">via ${uw.map(esc).join(", ")}</div>`:""}
         <div class="tags"><span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div></div>
-      <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
+      <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${a.comm!=null?`<div class="comm"><strong>${+a.comm.toFixed(1)}%</strong> commission${a.commAmt?` · about ${money(a.commAmt)}`:""}${a.commAll?` <span class="small">(all lines)</span>`:""}</div>`:""}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
       <div class="rec"><span class="cell-label">Track record</span>
         <div><strong>${a.bound}</strong> bound${br!=null?` · ${pct(br)} bind rate`:""}</div>
         <div class="small">${a.subs.toLocaleString()} quoted${outc.length?` · ${outc.join(" · ")}`:""}${a.last>=0?` · last ${fmtDate(dayToDate(a.last))}`:""}</div></div>

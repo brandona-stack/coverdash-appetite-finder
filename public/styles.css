@@ -153,3 +153,5 @@ select:focus{outline:2px solid var(--green);outline-offset:1px;border-color:var(
   .a-side{border-left:0;border-top:1px solid rgba(255,255,255,.15);padding:12px 0 0}
   .crow{grid-template-columns:1fr;gap:8px}
 }
+.comm{margin-top:6px;font-size:13px;color:var(--g-ink);background:var(--g-bg);display:inline-block;padding:2px 8px;border-radius:6px}
+.comm strong{font-weight:700}
