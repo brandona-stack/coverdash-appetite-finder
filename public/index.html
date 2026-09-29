@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coverdash Appetite Finder</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">C</span>
+      <div>
+        <h1>Appetite Finder</h1>
+        <p class="sub" id="dataRange">Loading data…</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="search card" aria-label="Search">
+    <div class="field">
+      <label for="pt">Policy type</label>
+      <select id="pt"></select>
+    </div>
+    <div class="field">
+      <label for="st">State</label>
+      <select id="st"></select>
+    </div>
+    <div class="field">
+      <label for="ind">Industry</label>
+      <select id="ind"></select>
+    </div>
+  </section>
+
+  <section id="summary" class="summary" aria-live="polite"></section>
+  <section id="notice"></section>
+
+  <section class="results-head" id="resultsHead" hidden>
+    <h2 id="resultsTitle">Carriers</h2>
+    <label class="toggle"><input type="checkbox" id="onlyBound"> Only carriers that have bound</label>
+  </section>
+  <section id="results" class="results"></section>
+
+  <details class="help card">
+    <summary>How to read this</summary>
+    <dl>
+      <dt><span class="badge b-proven">Proven</span></dt><dd>Carrier has bound 3 or more of these with us.</dd>
+      <dt><span class="badge b-bound">Has bound</span></dt><dd>Bound 1–2 of these. Appetite is there, but it's a smaller track record.</dd>
+      <dt><span class="badge b-quotes">Quotes</span></dt><dd>Returns prices, but nothing bound in this combination yet.</dd>
+      <dt><span class="badge b-refers">Refers</span></dt><dd>Mostly sends these to underwriting for review.</dd>
+      <dt><span class="badge b-declines">Declines</span></dt><dd>Mostly rejects these or marks them not eligible.</dd>
+    </dl>
+    <p><strong>Bound</strong> is the number of businesses bound with that carrier in the last 6 months. The bar shows each carrier's share of all binds for this search.</p>
+    <p><strong>Bind rate</strong> is bound ÷ businesses that carrier quoted. Carriers that the online rater quotes automatically (Coterie, Hiscox, Chubb) quote nearly everyone, so their bind rates look lower.</p>
+    <p><strong>Typical premium</strong> is the median premium on bound policies, with the middle 50% range under it. When nothing bound, it falls back to quoted premium and is labeled that way.</p>
+    <p><strong>Data strength</strong> is based on how many businesses we quoted for this search: Strong means 30+, Moderate 10–29, Thin under 10.</p>
+  </details>
+</main>
+
+<footer class="wrap foot">Built from Coverdash quote and policy data. Figures are from our own submissions, not carrier guidelines. Confirm eligibility with the carrier before promising coverage.</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
