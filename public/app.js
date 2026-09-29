@@ -45,7 +45,6 @@ function init(){
     $(id).closest(".field").classList.toggle("bad",isNaN(v)||(max&&v>max)); if(!isNaN(v)&&!(max&&v>max)){S[key]=v;render()}},250)});
   num("rev","rev"); num("pay","pay"); num("sub","sub",100);
   ["rev","pay"].forEach(id=>$(id).addEventListener("blur",()=>{const v=parseAmt($(id).value);if(v>0)$(id).value=v.toLocaleString()}));
-  $("onlyBound").onchange=render;
   document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{sort=b.dataset.sort;render()});
   setupCombo();
   window.addEventListener("hashchange",()=>{readHash();render()});
@@ -121,23 +120,34 @@ function render(){
   const excluded=[], rows=[];
   for(const a of A.rows){ const name=D.carriers[a.c]; const lim=Engine.maxSubFor(name); (S.sub>lim?excluded:rows).push(Object.assign(a,{name,lim})); }
 
-  // Summary
+  // Split carriers into "can write this" and "tough fit"
+  const rate=a=>a.priced?Math.min(Math.max(a.boundQ,a.bound),a.priced)/a.priced:0;
+  for(const r of rows){
+    r.e=est.get(r.c); r.tag=appetiteTag(r);
+    const X=r.e&&(r.e.basis==="payroll"?S.pay:S.rev);
+    r.tooBig=haveExp&&r.e&&r.e.maxExp&&X>r.e.maxExp*2;
+    r.tooSmall=haveExp&&r.e&&r.e.minExp&&X<r.e.minExp/2;
+    r.fit=(r.tag[1]==="b-refers"||r.tag[1]==="b-declines"||r.tooBig)?"tough":"can";
+  }
+  const can=rows.filter(r=>r.fit==="can"), tough=rows.filter(r=>r.fit==="tough");
+  const withEst=can.filter(r=>r.e);
+  const mids=withEst.map(r=>r.e.mid).sort((x,y)=>x-y);
   const [sl,sn]=strength(A.subs);
-  const top=rows.filter(r=>r.bound>0).sort((a,b)=>b.bound-a.bound)[0];
-  const eligEst=rows.map(r=>est.get(r.c)).filter(Boolean);
-  let mkt=null;
-  if(eligEst.length){ const mids=eligEst.map(e=>e.mid).sort((a,b)=>a-b); mkt={lo:mids[0],mid:Engine.quant(mids,.5),hi:mids[mids.length-1],n:eligEst.length}; }
-  const all=est.get("all");
+  const expTxt=haveExp?`${short(expLabel==="payroll"?S.pay:S.rev)} ${expLabel}`:"";
   $("summary").innerHTML=(A.subs||A.bound)?`
-    <div class="stat hero"><div class="k">${haveExp?`Estimated premium at ${short(expLabel==="payroll"?S.pay:S.rev)} ${expLabel}`:"Typical quoted premium"}</div>
-      <div class="v">${mkt?money(mkt.mid):all?money(all.mid):"—"}</div>
-      <div class="s">${mkt?(mkt.n>1?`middle of ${mkt.n} carriers · ${money(mkt.lo)} to ${money(mkt.hi)}`:"only 1 carrier has enough data"):"not enough quotes to estimate"}</div></div>
-    <div class="stat"><div class="k">Businesses quoted</div><div class="v">${A.subs.toLocaleString()}</div>
-      <div class="s strength"><span class="dots">${[1,2,3].map(i=>`<i class="${i<=sn?"on":""}"></i>`).join("")}</span>${sl} data</div></div>
-    <div class="stat"><div class="k">Businesses bound</div><div class="v">${A.bound.toLocaleString()}</div>
-      <div class="s">${A.boundMed?`median bound premium ${money(A.boundMed)}`:""}</div></div>
-    <div class="stat"><div class="k">Most binds</div><div class="v name">${top?esc(top.name):"—"}</div>
-      <div class="s">${top?`${top.bound} of ${A.bound} bound`:"nothing bound yet"}</div></div>`:"";
+    <div class="answer">
+      <div class="a-main">
+        <div class="k">${can.length?`${can.length} carrier${can.length===1?"":"s"} can likely write this`:"No carriers with a clear appetite yet"}</div>
+        ${mids.length?`<div class="v">${mids.length>1?`${money(mids[0])} – ${money(mids[mids.length-1])}`:money(mids[0])}</div>
+          <div class="s">${haveExp?`Estimated premium at ${expTxt}`:"Typical quoted premium (enter revenue for this account)"}${mids.length>1?`, cheapest to priciest carrier · middle ${money(Engine.quant(mids,.5))}`:""}</div>`
+          :`<div class="s">${haveExp?"Not enough comparable quotes to estimate premium.":"Enter revenue to see premium ranges."}</div>`}
+      </div>
+      <div class="a-side">
+        <div><span class="n">${A.subs.toLocaleString()}</span> businesses quoted</div>
+        <div><span class="n">${A.bound.toLocaleString()}</span> bound${A.boundMed?` · median ${money(A.boundMed)}`:""}</div>
+        <div class="strength"><span class="dots">${[1,2,3].map(i=>`<i class="${i<=sn?"on":""}"></i>`).join("")}</span>${sl} data</div>
+      </div>
+    </div>`:"";
 
   // Notices
   const n=[];
@@ -150,52 +160,48 @@ function render(){
   else if(A.subs<10) n.push(`<div class="notice">Only ${A.subs} ${A.subs===1?"business":"businesses"} quoted here, so treat this as a rough read. ${broaden.join("")}</div>`);
   else if(S.prefix!==S.code) n.push(`<div class="notice info">Showing the wider group ${S.prefix}. ${broaden.join("")}</div>`);
   if(S.sub>25) n.push(`<div class="notice warn">${S.sub}% subcontracted: standard carriers are removed${S.sub>50?", including Coterie (its limit is 50%)":". Coterie stays in up to 50%"}.</div>`);
-  if(!haveExp&&A.rows.length) n.push(`<div class="notice info">Enter revenue${isWC?" or payroll":""} to get an estimated premium for this account.</div>`);
   $("notice").innerHTML=n.join("");
   $("notice").querySelectorAll("button[data-act]").forEach(b=>b.onclick=()=>{const [k,v]=b.dataset.act.split(":");if(k==="st"){S.st=v;$("st").value=v}else S.prefix=v;showAll=false;render()});
 
-  // Table
+  // Carrier list
   $("resultsHead").hidden=!rows.length;
   document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.sort===sort));
   const order={"b-proven":0,"b-bound":1,"b-quotes":2,"b-refers":3,"b-declines":4};
-  const rate=a=>a.priced?Math.min(Math.max(a.boundQ,a.bound),a.priced)/a.priced:0;
-  rows.sort(sort==="price"
-    ?(a,b)=>{const ea=est.get(a.c),eb=est.get(b.c);return (ea?ea.mid:Infinity)-(eb?eb.mid:Infinity)||b.bound-a.bound}
-    :(a,b)=>b.bound-a.bound||order[appetiteTag(a)[1]]-order[appetiteTag(b)[1]]||rate(b)-rate(a)||b.priced-a.priced);
-  let list=$("onlyBound").checked?rows.filter(r=>r.bound>0):rows;
-  const LIMIT=15,total=list.length; if(!showAll)list=list.slice(0,LIMIT);
-  const maxB=Math.max(1,...rows.map(r=>r.bound));
-  if(!rows.length){$("results").innerHTML="";$("results").style.display="none";}
-  else{
-    $("results").style.display="";
-    const head=`<div class="row head"><div>Carrier</div><div>${haveExp?"Estimated premium":"Typical quoted premium"}</div><div>Bound</div><div>Bind rate</div><div>Quoted</div><div>Last quoted</div></div>`;
-    const body=list.map(a=>{
-      const [al,ac]=appetiteTag(a); const e=est.get(a.c); const uw=D.uw[a.name];
-      const br=a.priced?rate(a):null;
-      const outc=[]; if(a.refer)outc.push(`${a.refer} referred`); if(a.decl)outc.push(`${a.decl} declined`);
-      let estHtml="—";
-      if(e){
-        const notes=[];
-        if(e.lo!==e.hi)notes.push(`${money(e.lo)}–${money(e.hi)}`);
-        notes.push(`${e.n} quote${e.n===1?"":"s"}${sameLevel(e.level)?"":` · ${levelText(e.level)}`}`);
-        let warn="";
-        const X=e.basis==="payroll"?S.pay:S.rev;
-        if(haveExp&&e.maxExp&&X>e.maxExp*1.5) warn=`<div class="flag">Above the largest ${e.basis} they've quoted here (${short(e.maxExp)})</div>`;
-        else if(haveExp&&e.minExp&&X<e.minExp/1.5) warn=`<div class="flag">Below the smallest ${e.basis} they've quoted here (${short(e.minExp)})</div>`;
-        estHtml=`<span class="prem${e.thin?" thin":""}">${money(e.mid)}</span><div class="small">${notes.join(" · ")}${e.thin?" · rough":""}</div>${warn}`;
-      }
-      return `<div class="row">
-        <div class="car">${esc(a.name)}${uw?`<div class="uw">via ${uw.map(esc).join(", ")}</div>`:""}<div class="tags"><span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div></div>
-        <div><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${estHtml}</div>
-        <div><span class="cell-label">Bound</span><div class="bar"><span class="n">${a.bound}</span><span class="track"><span class="fill" style="width:${a.bound/maxB*100}%"></span></span></div></div>
-        <div><span class="cell-label">Bind rate</span><span class="num">${br==null?"—":pct(br)}</span>${br!=null&&a.priced<5?`<div class="small">small sample</div>`:""}</div>
-        <div><span class="cell-label">Quoted</span><span class="num">${a.subs.toLocaleString()}</span>${outc.length?`<div class="small">${outc.join(" · ")}</div>`:""}</div>
-        <div><span class="cell-label">Last quoted</span><span class="small">${a.last>=0?fmtDate(dayToDate(a.last)):"—"}</span></div>
-      </div>`}).join("");
-    const more=total>LIMIT?`<button class="more" id="moreBtn">${showAll?"Show fewer":`Show all ${total} carriers`}</button>`:"";
-    $("results").innerHTML=head+body+more;
-    if(more)$("moreBtn").onclick=()=>{showAll=!showAll;render()};
-  }
+  const cmp=sort==="price"
+    ?(a,b)=>(a.e?a.e.mid:Infinity)-(b.e?b.e.mid:Infinity)||b.bound-a.bound
+    :(a,b)=>b.bound-a.bound||order[a.tag[1]]-order[b.tag[1]]||rate(b)-rate(a)||b.priced-a.priced;
+  can.sort(cmp); tough.sort(cmp);
+  const card=a=>{
+    const [al,ac]=a.tag, e=a.e, uw=D.uw[a.name], br=a.priced?rate(a):null;
+    let prem=`<div class="p-none">${haveExp?"Not enough quotes to estimate":"Enter revenue to estimate"}</div>`;
+    if(e){
+      const where=sameLevel(e.level)?"":` · from ${levelText(e.level)}`;
+      prem=`<div class="p-range${e.thin?" thin":""}">${e.lo!==e.hi?`${money(e.lo)} – ${money(e.hi)}`:money(e.mid)}</div>
+        <div class="small">typical ${money(e.mid)} · ${e.n} comparable quote${e.n===1?"":"s"}${where}${e.thin?" · rough":""}</div>`;
+    }
+    const flags=[];
+    if(a.tooBig)flags.push(`Bigger than anything they've quoted here (max ${short(e.maxExp)} ${e.basis})`);
+    else if(haveExp&&e&&e.maxExp&&(e.basis==="payroll"?S.pay:S.rev)>e.maxExp*1.25)flags.push(`Near the top of what they've quoted (max ${short(e.maxExp)})`);
+    if(a.tooSmall)flags.push(`Smaller than they usually quote (min ${short(e.minExp)})`);
+    const outc=[]; if(a.refer)outc.push(`${a.refer} referred`); if(a.decl)outc.push(`${a.decl} declined`);
+    return `<div class="crow">
+      <div class="car">${esc(a.name)}${uw?`<div class="uw">via ${uw.map(esc).join(", ")}</div>`:""}
+        <div class="tags"><span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div></div>
+      <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
+      <div class="rec"><span class="cell-label">Track record</span>
+        <div><strong>${a.bound}</strong> bound${br!=null?` · ${pct(br)} bind rate`:""}</div>
+        <div class="small">${a.subs.toLocaleString()} quoted${outc.length?` · ${outc.join(" · ")}`:""}${a.last>=0?` · last ${fmtDate(dayToDate(a.last))}`:""}</div></div>
+    </div>`;
+  };
+  const LIMIT=12;
+  const canList=showAll?can:can.slice(0,LIMIT);
+  let html="";
+  if(can.length) html+=`<div class="group"><div class="g-head"><span class="dot ok"></span>Can write this <span class="count">${can.length}</span></div>${canList.map(card).join("")}
+    ${can.length>LIMIT?`<button class="more" id="moreBtn">${showAll?"Show fewer":`Show all ${can.length} carriers`}</button>`:""}</div>`;
+  if(tough.length) html+=`<div class="group tough"><div class="g-head"><span class="dot no"></span>Tough fit <span class="count">${tough.length}</span><span class="g-note">mostly refer or decline these, or the account is bigger than they've written</span></div>${tough.map(card).join("")}</div>`;
+  $("results").innerHTML=html;
+  $("results").style.display=html?"":"none";
+  const mb=$("moreBtn"); if(mb)mb.onclick=()=>{showAll=!showAll;render()};
   $("excluded").innerHTML=excluded.length?`<div class="excl"><strong>Removed for ${S.sub}% sub:</strong> ${excluded.sort((a,b)=>b.bound-a.bound).map(a=>`${esc(a.name)} <span class="small">(max ${a.lim}%)</span>`).join(", ")}</div>`:"";
 }
 })();

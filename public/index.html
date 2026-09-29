@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Coverdash Appetite Finder</title>
+<title>Coverdash Appetite &amp; Indications</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +17,7 @@
     <div class="brand">
       <img class="logo" src="logo.png" alt="" width="42" height="42">
       <div>
-        <h1>Appetite Finder</h1>
+        <h1>Appetite &amp; Indication Finder</h1>
         <p class="sub" id="dataRange">Loading data…</p>
       </div>
     </div>
@@ -63,12 +63,9 @@
 
   <section class="results-head" id="resultsHead" hidden>
     <h2 id="resultsTitle">Carriers</h2>
-    <div class="controls">
-      <label class="toggle"><input type="checkbox" id="onlyBound"> Only carriers that have bound</label>
-      <div class="seg" role="group" aria-label="Sort">
-        <button type="button" data-sort="bound" aria-pressed="true">Most binds</button>
-        <button type="button" data-sort="price" aria-pressed="false">Lowest estimate</button>
-      </div>
+    <div class="seg" role="group" aria-label="Sort">
+      <button type="button" data-sort="bound" aria-pressed="true">Best fit</button>
+      <button type="button" data-sort="price" aria-pressed="false">Lowest premium</button>
     </div>
   </section>
   <section id="results" class="results"></section>
@@ -92,7 +89,9 @@
     <h3>Subcontracted work</h3>
     <p>Most of the quotes behind these estimates are for accounts with little or no subcontracted work. Expect real quotes on high-sub accounts to come in above the estimate, especially for GL.</p>
     <p>Above 25% sub, standard carriers are removed: The Hartford, Chubb, Acuity, Travelers, Hiscox, CNA, biBerk, Nationwide, Employers, Guard, Hanover, Amtrust, Three by Berkshire, Markel and Great American. Coterie considers up to 50%. The removed carriers are listed under the table.</p>
-    <h3>Other columns</h3>
+    <h3>Can write this vs. tough fit</h3>
+    <p>A carrier is a <strong>tough fit</strong> when it mostly refers or declines this class, or when the account is more than twice the size of anything it has quoted here. Every other carrier that has quoted this class is listed under <strong>Can write this</strong>. The big range at the top runs from the cheapest carrier's typical estimate to the priciest carrier's.</p>
+    <h3>Track record</h3>
     <p><strong>Bound</strong> counts the businesses we've bound with that carrier. <strong>Bind rate</strong> is bound ÷ businesses that carrier priced. Carriers the online rater quotes automatically (Coterie, Hiscox, Chubb) quote almost everyone, so their bind rates look lower.</p>
   </details>
 </main>
