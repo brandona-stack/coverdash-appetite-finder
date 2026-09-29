@@ -12,7 +12,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-
 .top{background:var(--navy);color:#fff}
 .top-inner{display:flex;align-items:center;justify-content:space-between;padding-top:18px;padding-bottom:18px}
 .brand{display:flex;gap:12px;align-items:center}
-.logo{width:38px;height:38px;border-radius:10px;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-weight:700;font-size:20px}
+.logo{width:42px;height:42px;border-radius:10px;background:#fff;padding:0;display:block;object-fit:cover}
 h1{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
 .sub{margin:0;color:#B9C4D8;font-size:13px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
