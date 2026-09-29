@@ -26,17 +26,35 @@
 
 <main class="wrap">
   <section class="search card" aria-label="Search">
-    <div class="field">
-      <label for="pt">Policy type</label>
-      <select id="pt"></select>
+    <div class="grid3">
+      <div class="field">
+        <label for="pt">Policy type</label>
+        <select id="pt"></select>
+      </div>
+      <div class="field">
+        <label for="st">State</label>
+        <select id="st"></select>
+      </div>
+      <div class="field combo">
+        <label for="cls">Class (NAICS)</label>
+        <input id="cls" type="text" autocomplete="off" placeholder="Search by name or code, e.g. plumbing or 238220" role="combobox" aria-expanded="false" aria-controls="clsList">
+        <button type="button" class="clear" id="clsClear" aria-label="Clear class" hidden>×</button>
+        <ul id="clsList" class="combo-list" role="listbox" hidden></ul>
+      </div>
     </div>
-    <div class="field">
-      <label for="st">State</label>
-      <select id="st"></select>
-    </div>
-    <div class="field">
-      <label for="ind">Industry</label>
-      <select id="ind"></select>
+    <div class="grid3 exposures">
+      <div class="field">
+        <label for="rev">Annual revenue</label>
+        <div class="affix"><span>$</span><input id="rev" type="text" inputmode="decimal" placeholder="e.g. 750,000 or 750k"></div>
+      </div>
+      <div class="field">
+        <label for="pay">Annual payroll</label>
+        <div class="affix"><span>$</span><input id="pay" type="text" inputmode="decimal" placeholder="e.g. 200,000 or 200k"></div>
+      </div>
+      <div class="field">
+        <label for="sub">Subcontracted work</label>
+        <div class="affix right"><input id="sub" type="text" inputmode="decimal" placeholder="0"><span>%</span></div>
+      </div>
     </div>
   </section>
 
@@ -45,28 +63,43 @@
 
   <section class="results-head" id="resultsHead" hidden>
     <h2 id="resultsTitle">Carriers</h2>
-    <label class="toggle"><input type="checkbox" id="onlyBound"> Only carriers that have bound</label>
+    <div class="controls">
+      <label class="toggle"><input type="checkbox" id="onlyBound"> Only carriers that have bound</label>
+      <div class="seg" role="group" aria-label="Sort">
+        <button type="button" data-sort="bound" aria-pressed="true">Most binds</button>
+        <button type="button" data-sort="price" aria-pressed="false">Lowest estimate</button>
+      </div>
+    </div>
   </section>
   <section id="results" class="results"></section>
+  <section id="excluded"></section>
 
   <details class="help card">
     <summary>How to read this</summary>
+    <h3>Estimated premium</h3>
+    <p>The estimate comes from real quotes we've received for similar businesses. For each carrier, the tool finds quotes for the same policy type and class whose revenue is between half and double what you entered. For Workers' Comp it compares payroll instead. It adjusts those quotes to your number and shows the median, with the middle 50% range underneath.</p>
+    <p>If the carrier hasn't quoted enough in this exact class and state, the estimate broadens to all states, then to the wider NAICS group (for example, 2382 instead of 238220). When that happens, the row tells you which level it used.</p>
+    <p>For Workers' Comp, the search stays in the same state and widens the class first, because WC rates depend so much on the state.</p>
+    <p>When we tested this against past quotes, a typical estimate was within about 25% of the actual price. For GL, BOP, Professional and Cyber, about two out of three estimates were within ±50%. Workers' Comp is looser: about half were within ±50%, because WC class codes don't line up neatly with NAICS. Umbrella, Property and Inland Marine don't have enough data to be reliable. Treat the estimate as a ballpark to set expectations. It isn't a quote.</p>
+    <h3>Appetite tags</h3>
     <dl>
-      <dt><span class="badge b-proven">Proven</span></dt><dd>Carrier has bound 3 or more of these with us.</dd>
-      <dt><span class="badge b-bound">Has bound</span></dt><dd>Bound 1–2 of these. Appetite is there, but it's a smaller track record.</dd>
-      <dt><span class="badge b-quotes">Quotes</span></dt><dd>Returns prices, but nothing bound in this combination yet.</dd>
-      <dt><span class="badge b-refers">Refers</span></dt><dd>Mostly sends these to underwriting for review.</dd>
-      <dt><span class="badge b-declines">Declines</span></dt><dd>Mostly rejects these or marks them not eligible.</dd>
+      <dt><span class="badge b-proven">Proven</span></dt><dd>We've bound 3 or more of these with this carrier.</dd>
+      <dt><span class="badge b-bound">Has bound</span></dt><dd>We've bound 1–2 of these.</dd>
+      <dt><span class="badge b-quotes">Quotes</span></dt><dd>The carrier returns prices, but we haven't bound one here.</dd>
+      <dt><span class="badge b-refers">Refers</span></dt><dd>The carrier mostly sends these to underwriting.</dd>
+      <dt><span class="badge b-declines">Declines</span></dt><dd>The carrier mostly rejects these or marks them not eligible.</dd>
     </dl>
-    <p><strong>Bound</strong> is the number of businesses bound with that carrier in the last 6 months. The bar shows each carrier's share of all binds for this search.</p>
-    <p><strong>Bind rate</strong> is bound ÷ businesses that carrier quoted. Carriers that the online rater quotes automatically (Coterie, Hiscox, Chubb) quote nearly everyone, so their bind rates look lower.</p>
-    <p><strong>Typical premium</strong> is the median premium on bound policies, with the middle 50% range under it. When nothing bound, it falls back to quoted premium and is labeled that way.</p>
-    <p><strong>Data strength</strong> is based on how many businesses we quoted for this search: Strong means 30+, Moderate 10–29, Thin under 10.</p>
+    <h3>Subcontracted work</h3>
+    <p>Most of the quotes behind these estimates are for accounts with little or no subcontracted work. Expect real quotes on high-sub accounts to come in above the estimate, especially for GL.</p>
+    <p>Above 25% sub, standard carriers are removed: The Hartford, Chubb, Acuity, Travelers, Hiscox, CNA, biBerk, Nationwide, Employers, Guard, Hanover, Amtrust, Three by Berkshire, Markel and Great American. Coterie considers up to 50%. The removed carriers are listed under the table.</p>
+    <h3>Other columns</h3>
+    <p><strong>Bound</strong> counts the businesses we've bound with that carrier. <strong>Bind rate</strong> is bound ÷ businesses that carrier priced. Carriers the online rater quotes automatically (Coterie, Hiscox, Chubb) quote almost everyone, so their bind rates look lower.</p>
   </details>
 </main>
 
-<footer class="wrap foot">Built from Coverdash quote and policy data. Figures are from our own submissions, not carrier guidelines. Confirm eligibility with the carrier before promising coverage.</footer>
+<footer class="wrap foot">Built from Coverdash quote and bound policy data. Estimates come from our past quotes, not carrier rating. Confirm eligibility and pricing with the carrier before you present anything to a client.</footer>
 
+<script src="engine.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
