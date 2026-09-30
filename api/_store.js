@@ -15,7 +15,7 @@ async function redis(...cmd) {
 }
 
 // Passcode for the Rules tab. RULES_PASSCODE in Vercel overrides this default.
-const PASSCODE = process.env.RULES_PASSCODE || '1776';
+const PASSCODE = process.env.RULES_PASSCODE || 'mak0930';
 
 function passcodeOk(req) {
   const got = String(req.headers['x-passcode'] || '');
