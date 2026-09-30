@@ -14,13 +14,26 @@ async function redis(...cmd) {
   return j.result;
 }
 
+// Passcode for the Rules tab. RULES_PASSCODE in Vercel overrides this default.
+const PASSCODE = process.env.RULES_PASSCODE || '1776';
+
 function passcodeOk(req) {
-  const want = process.env.RULES_PASSCODE || '';
   const got = String(req.headers['x-passcode'] || '');
-  if (!want) return false;
-  const a = crypto.createHash('sha256').update(want).digest();
+  const a = crypto.createHash('sha256').update(PASSCODE).digest();
   const b = crypto.createHash('sha256').update(got).digest();
   return crypto.timingSafeEqual(a, b);
+}
+
+// Lockout: 10 wrong passcodes from one IP -> blocked for 15 minutes.
+const MAX_TRIES = 10, WINDOW_S = 900;
+const ipOf = req => String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+async function checkPasscode(req) {
+  const key = `lock:${ipOf(req)}`;
+  const tries = +(await redis('GET', key).catch(() => 0)) || 0;
+  if (tries >= MAX_TRIES) { const e = new Error('Too many wrong passcodes. Try again in 15 minutes.'); e.status = 429; e.expose = true; throw e; }
+  if (passcodeOk(req)) return true;
+  await redis('INCR', key).catch(() => {}); await redis('EXPIRE', key, WINDOW_S).catch(() => {});
+  return false;
 }
 
 async function readBody(req) {
@@ -41,10 +54,10 @@ function send(res, status, obj) {
 function wrap(fn) {
   return async (req, res) => {
     try { await fn(req, res); }
-    catch (e) { send(res, e.status || 500, { error: e.message === 'storage_not_configured' ? 'Storage is not set up yet. Add Upstash for Redis in Vercel > Storage.' : 'Something went wrong. Try again.' }); }
+    catch (e) { send(res, e.status || 500, { error: e.message === 'storage_not_configured' ? 'Storage is not set up yet. Add Upstash for Redis in Vercel > Storage.' : e.expose ? e.message : 'Something went wrong. Try again.' }); }
   };
 }
 
 const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
 
-module.exports = { redis, passcodeOk, readBody, send, wrap, clip };
+module.exports = { redis, passcodeOk, checkPasscode, readBody, send, wrap, clip };

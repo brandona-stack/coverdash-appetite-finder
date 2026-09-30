@@ -1,6 +1,6 @@
 // GET /api/rules            -> anyone: { rules: [...] | null }  (null = never saved, site uses built-in defaults)
 // PUT /api/rules (passcode) -> replace the full rules list: { rules: [...], by: 'name' }
-const { redis, passcodeOk, readBody, send, wrap, clip } = require('./_store');
+const { redis, checkPasscode, readBody, send, wrap, clip } = require('./_store');
 const KEY = 'rules:v1';
 const HIST = 'rules:history:v1';
 const TYPES = ['exclude', 'sublimit', 'commission', 'note', 'prefer'];
@@ -27,7 +27,7 @@ module.exports = wrap(async (req, res) => {
     return send(res, 200, { rules: raw ? JSON.parse(raw) : null });
   }
   if (req.method !== 'PUT') return send(res, 405, { error: 'GET or PUT only' });
-  if (!passcodeOk(req)) return send(res, 401, { error: 'Passcode required' });
+  if (!(await checkPasscode(req))) return send(res, 401, { error: 'Passcode required' });
   const b = await readBody(req);
   if (!Array.isArray(b.rules)) return send(res, 400, { error: 'rules must be a list' });
   const rules = b.rules.slice(0, 500).map(clean).filter(Boolean);

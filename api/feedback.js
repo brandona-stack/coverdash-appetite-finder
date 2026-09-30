@@ -3,13 +3,13 @@
 // POST /api/feedback {action:'status', id, status} (passcode) -> mark new / done
 // POST /api/feedback {action:'delete', id}          (passcode) -> delete
 const crypto = require('crypto');
-const { redis, passcodeOk, readBody, send, wrap, clip } = require('./_store');
+const { redis, checkPasscode, readBody, send, wrap, clip } = require('./_store');
 const KEY = 'feedback:v1';
 const MAX = 2000;
 
 module.exports = wrap(async (req, res) => {
   if (req.method === 'GET') {
-    if (!passcodeOk(req)) return send(res, 401, { error: 'Passcode required' });
+    if (!(await checkPasscode(req))) return send(res, 401, { error: 'Passcode required' });
     const raw = await redis('HVALS', KEY) || [];
     const items = raw.map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean).sort((a, b) => b.at.localeCompare(a.at));
     return send(res, 200, { items });
@@ -18,7 +18,7 @@ module.exports = wrap(async (req, res) => {
   const b = await readBody(req);
 
   if (b.action === 'status' || b.action === 'delete') {
-    if (!passcodeOk(req)) return send(res, 401, { error: 'Passcode required' });
+    if (!(await checkPasscode(req))) return send(res, 401, { error: 'Passcode required' });
     const id = clip(b.id, 40);
     if (b.action === 'delete') { await redis('HDEL', KEY, id); return send(res, 200, { ok: true }); }
     const cur = await redis('HGET', KEY, id);
