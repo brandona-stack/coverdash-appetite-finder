@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id);
 const AF=window.AF;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const store={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch(e){}}};
-let passcode=store.get("af_passcode")||"";
+let passcode=store.get("af_passcode")||"", role="", admin={rules:null,pending:[]};
 
 // ---- Tabs ------------------------------------------------------------------
 function showTab(t){
@@ -55,12 +55,13 @@ async function unlock(code,silent){
     const r=await fetch("api/auth",{method:"POST",headers:{"x-passcode":code}});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.error||"Wrong passcode");
-    passcode=code; store.set("af_passcode",code);
+    passcode=code; role=j.role||"editor"; store.set("af_passcode",code);
     $("rulesLock").hidden=true; $("rulesAdmin").hidden=false; st.textContent="";
-    editing=null; renderRules(); loadInbox();
+    $("roleTag").textContent=role==="owner"?"Signed in as owner":"Signed in as editor · changes need owner approval";
+    editing=null; await loadAdmin(); loadInbox();
   }catch(err){ passcode=""; store.set("af_passcode",null); $("rulesLock").hidden=false; $("rulesAdmin").hidden=true; st.textContent=err.message; st.className="status bad"; }
 }
-function lock(){ passcode=""; store.set("af_passcode",null); $("rulesLock").hidden=false; $("rulesAdmin").hidden=true; $("passcode").value=""; }
+function lock(){ passcode=""; role=""; store.set("af_passcode",null); $("rulesLock").hidden=false; $("rulesAdmin").hidden=true; $("passcode").value=""; }
 $("lockForm").onsubmit=e=>{e.preventDefault();unlock($("passcode").value)};
 $("lockBtn").onclick=lock;
 document.querySelectorAll("[data-admin]").forEach(b=>b.onclick=()=>{
@@ -78,7 +79,30 @@ const TYPES={
   prefer:{label:"Preferred carrier",help:"Pin the carrier to the top of its group and tag it Preferred.",value:null,note:"Note (optional)"},
 };
 let editing=null; // rule being edited (object) or null
-const workingRules=()=>JSON.parse(JSON.stringify(AF.rules||window.Engine.DEFAULT_RULES));
+const workingRules=()=>JSON.parse(JSON.stringify(admin.rules||AF.rules||window.Engine.DEFAULT_RULES));
+async function loadAdmin(){
+  try{ const j=await api("api/rules?admin=1"); admin={rules:j.rules,pending:j.pending||[]}; role=j.role||role; }catch(err){ admin={rules:null,pending:[]}; }
+  paintPendingBadge(); renderRules();
+}
+function paintPendingBadge(){ const n=admin.pending.length; const t=document.querySelector('.tabs [data-tab="rules"]'); let b=t.querySelector(".tabcount"); if(!b){b=document.createElement("span");b.className="tabcount";t.appendChild(b);} b.textContent=n&&role==="owner"?n:""; b.hidden=!(n&&role==="owner"); }
+function opText(p){
+  const o=p.op, r=o.rule||p.before||{}, name=`${TYPES[r.type]?TYPES[r.type].label:"Rule"} for ${carriersText(r)}`;
+  if(o.kind==="add")return {head:`Add: ${name}`,rule:o.rule};
+  if(o.kind==="edit")return {head:`Change: ${name}`,rule:o.rule,before:p.before};
+  if(o.kind==="delete")return {head:`Delete: ${name}`,rule:p.before};
+  return {head:`${o.active?"Turn on":"Turn off"}: ${name}`,rule:p.before};
+}
+const ruleLine=r=>r?`${valueText(r)?esc(valueText(r))+" · ":""}${esc(condText(r))}${r.note?` · “${esc(r.note)}”`:""}`:"";
+function pendingHtml(){
+  if(!admin.pending.length)return "";
+  return `<div class="pending"><h3>Waiting for approval <span class="count">${admin.pending.length}</span></h3>
+    ${admin.pending.map(p=>{const t=opText(p);return `<div class="prow">
+      <div class="r-main"><strong>${esc(t.head)}</strong>
+        ${t.before?`<div class="small"><span class="was">Was:</span> ${ruleLine(t.before)}</div><div class="small"><span class="now">Now:</span> ${ruleLine(t.rule)}</div>`:`<div class="small">${ruleLine(t.rule)}</div>`}
+        <div class="small">Proposed by ${esc(p.by)} · ${new Date(p.at).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div></div>
+      <div class="r-act">${role==="owner"?`<button type="button" class="btn primary sm" data-approve="${p.id}">Approve</button><button type="button" class="btn sm" data-reject="${p.id}">Reject</button>`:`<span class="badge b-refers">Waiting for owner</span>`}</div>
+    </div>`}).join("")}</div>`;
+}
 const money=n=>"$"+Math.round(n).toLocaleString();
 function condText(r){
   const c=[];
@@ -96,10 +120,12 @@ function valueText(r){ if(r.type==="sublimit")return `Up to ${r.value}% sub`; if
 function renderRules(){
   const rules=workingRules();
   const fromDefaults=!AF.rules;
+  const lead=role==="owner"?"You're the owner, so your changes go live right away, and you approve or reject what editors propose.":"Your changes are sent to the owner for approval. They go live once approved.";
   let h=`<div class="card panel">
-    <div class="rules-top"><div><h2>Carrier rules</h2><p class="muted">Rules apply to everyone as soon as you save. More specific rules win. For example, a Coterie-only sub % rule beats a rule that covers every standard carrier.</p></div>
+    <div class="rules-top"><div><h2>Carrier rules</h2><p class="muted">${lead} More specific rules win. For example, a Coterie-only sub % rule beats a rule that covers every standard carrier.</p></div>
     <button type="button" class="btn primary" id="addRule">Add rule</button></div>
-    ${fromDefaults?`<p class="notice info">These are the built-in rules. Your first save stores them, and from then on this list is the one everyone uses.</p>`:""}
+    ${pendingHtml()}
+    ${fromDefaults&&role==="owner"?`<p class="notice info">These are the built-in rules. Your first change stores them, and from then on this list is the one everyone uses.</p>`:""}
     <div id="ruleForm"></div>
     <div class="rules-list">${rules.length?rules.map((r,i)=>`<div class="rule${r.active===false?" off":""}">
       <div class="r-main"><span class="badge b-type t-${r.type}">${esc(TYPES[r.type]?TYPES[r.type].label:r.type)}</span>
@@ -115,8 +141,10 @@ function renderRules(){
   $("adminRules").innerHTML=h;
   $("addRule").onclick=()=>{editing={type:"exclude",carriers:[],pts:[],states:[],naics:[],active:true};renderForm(-1);};
   $("adminRules").querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{editing=workingRules()[+b.dataset.edit];renderForm(+b.dataset.edit);});
-  $("adminRules").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(!confirmDelete(b))return; const rs=workingRules(); rs.splice(+b.dataset.del,1); save(rs,"Rule deleted."); });
-  $("adminRules").querySelectorAll("[data-toggle]").forEach(c=>c.onchange=()=>{ const rs=workingRules(); rs[+c.dataset.toggle].active=c.checked; save(rs,c.checked?"Rule turned on.":"Rule turned off."); });
+  $("adminRules").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(!confirmDelete(b))return; propose({kind:"delete",id:workingRules()[+b.dataset.del].id}); });
+  $("adminRules").querySelectorAll("[data-toggle]").forEach(c=>c.onchange=()=>{ propose({kind:"toggle",id:workingRules()[+c.dataset.toggle].id,active:c.checked}); });
+  $("adminRules").querySelectorAll("[data-approve]").forEach(b=>b.onclick=()=>decide("approve",b.dataset.approve));
+  $("adminRules").querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>decide("reject",b.dataset.reject));
 }
 // Two-click delete instead of a browser confirm() dialog
 function confirmDelete(b){ if(b.dataset.armed){return true;} b.dataset.armed="1"; b.textContent="Click again to delete"; setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="Delete";}},3000); return false; }
@@ -168,9 +196,7 @@ function renderForm(idx){
     if(!editing.carriers.length){st.textContent="Pick at least one carrier.";st.className="status bad";return;}
     if(T2.value&&(editing.value==null||isNaN(editing.value))){st.textContent=`Enter the ${T2.value.toLowerCase()}.`;st.className="status bad";return;}
     if((editing.type==="note")&&!editing.note){st.textContent="Write the note AEs should see.";st.className="status bad";return;}
-    const rs=workingRules(); editing.at=new Date().toISOString();
-    if(idx<0){editing.id=Math.random().toString(36).slice(2,10);rs.push(editing);} else rs[idx]=editing;
-    save(rs,"Rule saved.");
+    propose(idx<0?{kind:"add",rule:editing}:{kind:"edit",rule:editing});
   };
   $("ruleForm").scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -189,16 +215,22 @@ function collect(){
   editing.note=$("rNote").value.trim();
   editing.by=$("rBy").value.trim(); try{localStorage.setItem("af_name",editing.by)}catch(e){}
 }
-async function save(rules,msg){
-  const st=$("rulesStatus")||{};
+async function propose(op){
   try{
-    const j=await api("api/rules",{method:"PUT",body:JSON.stringify({rules,by:storeName()})});
-    AF.setRules(j.rules); editing=null; renderRules();
-    const s2=$("rulesStatus"); if(s2){s2.textContent=msg;s2.className="status ok";}
-  }catch(err){
-    const s2=$("rStatus")||$("rulesStatus"); if(s2){s2.textContent=err.message;s2.className="status bad";}
-  }
+    const j=await api("api/rules",{method:"POST",body:JSON.stringify({action:"propose",op,by:storeName()})});
+    if(j.applied){ AF.setRules(j.rules); admin.rules=j.rules; }
+    admin.pending=j.pending||admin.pending; editing=null; paintPendingBadge(); renderRules();
+    flash(j.applied?"Saved. It's live now.":"Sent to the owner for approval. It'll go live once approved.","ok");
+  }catch(err){ flash(err.message,"bad",true); renderRules(); }
 }
+async function decide(action,id){
+  try{
+    const j=await api("api/rules",{method:"POST",body:JSON.stringify({action,id,by:storeName()})});
+    admin.rules=j.rules; admin.pending=j.pending||[]; if(action==="approve")AF.setRules(j.rules);
+    paintPendingBadge(); renderRules(); flash(action==="approve"?"Approved. It's live now.":"Rejected.","ok");
+  }catch(err){ flash(err.message,"bad"); }
+}
+function flash(msg,kind,inForm){ const s2=(inForm&&$("rStatus"))||$("rulesStatus"); if(s2){s2.textContent=msg;s2.className="status "+kind;} }
 
 // ---- Feedback inbox ---------------------------------------------------------
 const TOPICS={appetite:"Carriers listed",premium:"Premium estimate",class:"Class search",commission:"Commission",rules:"Rules",idea:"Idea",other:"Other"};

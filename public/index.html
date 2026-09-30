@@ -145,7 +145,7 @@
 <main class="wrap view" id="view-rules" hidden>
   <section class="card panel" id="rulesLock">
     <h2>Rules</h2>
-    <p class="muted">Only people with the passcode can view and change rules or read feedback.</p>
+    <p class="muted">Enter your passcode. Editors can propose rule changes and read feedback. The owner approves changes before they go live.</p>
     <form id="lockForm" class="lock">
       <input id="passcode" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode">
       <button type="submit" class="btn primary">Unlock</button>
@@ -158,7 +158,7 @@
         <button type="button" data-admin="rules" aria-pressed="true">Rules</button>
         <button type="button" data-admin="inbox" aria-pressed="false">Feedback inbox <span id="inboxCount"></span></button>
       </div>
-      <button type="button" class="linkbtn" id="lockBtn">Lock</button>
+      <div class="admin-right"><span class="small" id="roleTag"></span><button type="button" class="linkbtn" id="lockBtn">Lock</button></div>
     </div>
     <div id="adminRules"></div>
     <div id="adminInbox" hidden></div>

@@ -14,26 +14,25 @@ async function redis(...cmd) {
   return j.result;
 }
 
-// Passcode for the Rules tab. RULES_PASSCODE in Vercel overrides this default.
-const PASSCODE = process.env.RULES_PASSCODE || '0930';
-
-function passcodeOk(req) {
-  const got = String(req.headers['x-passcode'] || '');
-  const a = crypto.createHash('sha256').update(PASSCODE).digest();
-  const b = crypto.createHash('sha256').update(got).digest();
-  return crypto.timingSafeEqual(a, b);
-}
+// Two passcodes (Vercel env vars override the defaults):
+//   OWNER_PASSCODE  (default 1776) - approves/rejects proposed rule changes and edits rules directly
+//   RULES_PASSCODE  (default 0930) - proposes rule changes (they wait for owner approval) and reads feedback
+const OWNER = process.env.OWNER_PASSCODE || '1776';
+const EDITOR = process.env.RULES_PASSCODE || '0930';
+const same = (x, y) => crypto.timingSafeEqual(crypto.createHash('sha256').update(x).digest(), crypto.createHash('sha256').update(y).digest());
+function roleFor(code) { code = String(code || ''); if (!code) return null; if (same(code, OWNER)) return 'owner'; if (same(code, EDITOR)) return 'editor'; return null; }
 
 // Lockout: 10 wrong passcodes from one IP -> blocked for 15 minutes.
 const MAX_TRIES = 10, WINDOW_S = 900;
 const ipOf = req => String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-async function checkPasscode(req) {
+// Returns 'owner' | 'editor' | null
+async function getRole(req) {
   const key = `lock:${ipOf(req)}`;
   const tries = +(await redis('GET', key).catch(() => 0)) || 0;
   if (tries >= MAX_TRIES) { const e = new Error('Too many wrong passcodes. Try again in 15 minutes.'); e.status = 429; e.expose = true; throw e; }
-  if (passcodeOk(req)) return true;
-  await redis('INCR', key).catch(() => {}); await redis('EXPIRE', key, WINDOW_S).catch(() => {});
-  return false;
+  const role = roleFor(req.headers['x-passcode']);
+  if (!role) { await redis('INCR', key).catch(() => {}); await redis('EXPIRE', key, WINDOW_S).catch(() => {}); }
+  return role;
 }
 
 async function readBody(req) {
@@ -60,4 +59,4 @@ function wrap(fn) {
 
 const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
 
-module.exports = { redis, passcodeOk, checkPasscode, readBody, send, wrap, clip };
+module.exports = { redis, getRole, readBody, send, wrap, clip };

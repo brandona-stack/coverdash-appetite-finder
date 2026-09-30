@@ -41,7 +41,7 @@ To set a rate by hand, add it to `COMMISSION_OVERRIDES` in `build_data.py`, for 
 
 ### One-time setup in Vercel
 1. Go to Storage → Create Database → **Upstash for Redis** (the free plan is enough) and connect it to this project. Vercel adds the `KV_REST_API_URL` and `KV_REST_API_TOKEN` environment variables.
-2. Optional: the Rules passcode defaults to `0930`. To change it, add `RULES_PASSCODE` under Settings → Environment Variables. After 10 wrong tries, that IP address is locked out for 15 minutes.
+2. Optional: there are two passcodes. The editor passcode is `0930` (override it with `RULES_PASSCODE`). Editors can propose rule changes and read feedback. The owner passcode is `1776` (override it with `OWNER_PASSCODE`). The owner approves or rejects proposed changes, and the owner's own changes go live right away. After 10 wrong tries, that IP address is locked out for 15 minutes.
 3. Redeploy.
 
 The passcode is only checked on the server. It never reaches the browser.
