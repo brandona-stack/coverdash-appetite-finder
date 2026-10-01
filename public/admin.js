@@ -232,6 +232,50 @@ async function decide(action,id){
 }
 function flash(msg,kind,inForm){ const s2=(inForm&&$("rStatus"))||$("rulesStatus"); if(s2){s2.textContent=msg;s2.className="status "+kind;} }
 
+// ---- Inline "Add note" on a carrier row -------------------------------------
+async function verify(code){
+  const r=await fetch("api/auth",{method:"POST",headers:{"x-passcode":code}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||"Wrong passcode");
+  passcode=code; role=j.role; store.set("af_passcode",code); return role;
+}
+function openNoteForm(slot,carrier){
+  document.querySelectorAll(".nform-slot").forEach(x=>{ if(x!==slot)x.innerHTML=""; });
+  if(slot.innerHTML){ slot.innerHTML=""; return; }
+  const S=AF.S, cls=S.code?AF.title(S.code):"";
+  slot.innerHTML=`<form class="nform">
+    <textarea rows="3" maxlength="300" placeholder="e.g. Won't write roofing over 3 stories. Needs 3 years in business. Prefers loss runs upfront." aria-label="Note about ${esc(carrier)}"></textarea>
+    <div class="small">Show this note:</div>
+    <label class="check"><input type="checkbox" data-scope="pt" checked> Only for ${esc(AF.ptLabel(S.pt))}</label>
+    ${S.st!=="*"?`<label class="check"><input type="checkbox" data-scope="st"> Only in ${esc(S.st)}</label>`:""}
+    ${S.code?`<label class="check"><input type="checkbox" data-scope="code"> Only for ${esc(S.code)} · ${esc(cls)}</label>`:""}
+    ${passcode?"":`<input type="password" class="npass" placeholder="Passcode" aria-label="Passcode" autocomplete="current-password">`}
+    <input type="text" class="nby" placeholder="Your name" maxlength="80" value="${esc(storeName())}" aria-label="Your name">
+    <div class="actions"><button type="submit" class="btn primary sm">Save note</button><button type="button" class="btn sm ncancel">Cancel</button><span class="status nstatus" role="status"></span></div>
+  </form>`;
+  const f=slot.querySelector("form"), st=f.querySelector(".nstatus");
+  f.querySelector("textarea").focus();
+  f.querySelector(".ncancel").onclick=()=>{slot.innerHTML="";};
+  f.onsubmit=async e=>{
+    e.preventDefault();
+    const text=f.querySelector("textarea").value.trim();
+    if(!text){st.textContent="Write the note first.";st.className="status nstatus bad";return;}
+    const by=f.querySelector(".nby").value.trim(); try{localStorage.setItem("af_name",by)}catch(e){}
+    try{
+      if(!passcode){ const pc=f.querySelector(".npass").value; if(!pc)throw new Error("Enter the passcode to add notes."); await verify(pc); }
+      const sc=k=>{const i=f.querySelector(`[data-scope="${k}"]`);return i&&i.checked;};
+      const rule={type:"note",carriers:[carrier],active:true,note:text,
+        pts:sc("pt")?[S.pt]:[], states:sc("st")?[S.st]:[], naics:sc("code")?[S.code]:[]};
+      st.textContent="Saving…"; st.className="status nstatus";
+      const j=await api("api/rules",{method:"POST",body:JSON.stringify({action:"propose",op:{kind:"add",rule},by})});
+      if(j.applied){ admin.rules=j.rules; AF.setRules(j.rules); }
+      else { admin.pending=j.pending||admin.pending; slot.innerHTML=`<div class="status ok">Note sent to the owner for approval. It will show here once it's approved.</div>`; }
+      paintPendingBadge();
+    }catch(err){ st.textContent=err.message; st.className="status nstatus bad"; }
+  };
+}
+window.AFAdmin={openNoteForm};
+
 // ---- Feedback inbox ---------------------------------------------------------
 const TOPICS={appetite:"Carriers listed",premium:"Premium estimate",class:"Class search",commission:"Commission",rules:"Rules",idea:"Idea",other:"Other"};
 let inbox=[], inboxFilter="new";

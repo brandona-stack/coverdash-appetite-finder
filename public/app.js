@@ -202,8 +202,12 @@ function render(){
     return `<div class="crow">
       <div class="car">${esc(a.name)}${uw?`<div class="uw">via ${uw.map(esc).join(", ")}</div>`:""}
         <div class="tags">${a.prefer?`<span class="badge b-pref">Preferred</span>`:""}<span class="badge ${ac}">${al}</span>${a.lim<Infinity&&S.sub>0?`<span class="badge b-lim">up to ${a.lim}% sub</span>`:""}</div>
-        ${(a.ruleNotes||[]).map(t=>`<div class="rnote">${esc(t)}</div>`).join("")}</div>
+        </div>
       <div class="prem-col"><span class="cell-label">${haveExp?"Estimated premium":"Typical quoted premium"}</span>${prem}${a.comm!=null?`<div class="comm"><strong>${+a.comm.toFixed(1)}%</strong> commission${a.commAmt?` · about ${money(a.commAmt)}`:""}${a.commAll?` <span class="small">(all lines)</span>`:""}${a.commRule?` <span class="small">(set by rule)</span>`:""}</div>`:""}${flags.map(f=>`<div class="flag">${esc(f)}</div>`).join("")}</div>
+      <div class="uwn"><span class="cell-label">Underwriting notes</span>
+        ${(a.ruleNotes||[]).length?`<ul class="notes">${a.ruleNotes.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:`<div class="small none">No notes yet</div>`}
+        <button type="button" class="linkbtn addnote" data-car="${esc(a.name)}">+ Add note</button>
+        <div class="nform-slot"></div></div>
     </div>`;
   };
   const LIMIT=12;
@@ -215,6 +219,7 @@ function render(){
   $("results").innerHTML=html;
   $("results").style.display=html?"":"none";
   const mb=$("moreBtn"); if(mb)mb.onclick=()=>{showAll=!showAll;render()};
+  $("results").querySelectorAll(".addnote").forEach(b=>b.onclick=()=>window.AFAdmin&&window.AFAdmin.openNoteForm(b.nextElementSibling,b.dataset.car));
   $("excluded").innerHTML=excluded.length?`<div class="excl"><strong>Removed by rules:</strong> ${excluded.sort((a,b)=>b.bound-a.bound).map(a=>`${esc(a.name)} <span class="small">(${esc(a.why)})</span>`).join(", ")}</div>`:"";
 }
 // Shared with admin.js
