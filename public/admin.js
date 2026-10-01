@@ -10,7 +10,7 @@ let passcode=store.get("af_passcode")||"", role="", admin={rules:null,pending:[]
 function showTab(t){
   document.querySelectorAll(".tabs [data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
   ["find","feedback","rules"].forEach(v=>$("view-"+v).hidden=v!==t);
-  if(t==="feedback")refreshSearchSummary();
+  if(t==="feedback"){ refreshSearchSummary(); paintFeedbackLock(); }
   if(t==="rules"&&passcode)unlock(passcode,true);
   window.scrollTo(0,0);
 }
@@ -18,6 +18,12 @@ document.querySelectorAll(".tabs [data-tab]").forEach(b=>b.onclick=()=>showTab(b
 $("fbFromResults").onclick=()=>{ $("fbAttach").checked=true; verdict="didnt"; paintVerdict(); showTab("feedback"); $("fbMsg").focus(); };
 
 // ---- Feedback form -----------------------------------------------------------
+function paintFeedbackLock(){ $("fbLock").hidden=!!passcode; $("fbPanel").hidden=!passcode; }
+$("fbLockForm").onsubmit=async e=>{
+  e.preventDefault(); const st=$("fbLockStatus"); st.textContent="Checking…"; st.className="status";
+  try{ await verify($("fbPasscode").value); st.textContent=""; $("fbPasscode").value=""; paintFeedbackLock(); $("fbMsg").focus(); }
+  catch(err){ st.textContent=err.message; st.className="status bad"; }
+};
 let verdict="";
 function paintVerdict(){document.querySelectorAll("[data-verdict]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.verdict===verdict))}
 document.querySelectorAll("[data-verdict]").forEach(b=>b.onclick=()=>{verdict=b.dataset.verdict;paintVerdict()});
@@ -31,8 +37,9 @@ $("fbForm").onsubmit=async e=>{
   const body={verdict,topic:$("fbTopic").value,name,message:msg,search:$("fbAttach").checked?AF.searchSummary():null};
   $("fbSend").disabled=true; st.textContent="Sending…"; st.className="status";
   try{
-    const r=await fetch("api/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const r=await fetch("api/feedback",{method:"POST",headers:{"Content-Type":"application/json","x-passcode":passcode},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
+    if(r.status===401){ lock(); throw new Error("Your passcode is no longer valid. Unlock again to send."); }
     if(!r.ok)throw new Error(j.error||"Couldn't send. Try again.");
     st.textContent="Thanks, your feedback was sent."; st.className="status ok";
     $("fbMsg").value=""; verdict=""; paintVerdict();
@@ -61,7 +68,7 @@ async function unlock(code,silent){
     editing=null; await loadAdmin(); loadInbox();
   }catch(err){ passcode=""; store.set("af_passcode",null); $("rulesLock").hidden=false; $("rulesAdmin").hidden=true; st.textContent=err.message; st.className="status bad"; }
 }
-function lock(){ passcode=""; role=""; store.set("af_passcode",null); $("rulesLock").hidden=false; $("rulesAdmin").hidden=true; $("passcode").value=""; }
+function lock(){ passcode=""; role=""; if($("fbLock"))paintFeedbackLock(); store.set("af_passcode",null); $("rulesLock").hidden=false; $("rulesAdmin").hidden=true; $("passcode").value=""; }
 $("lockForm").onsubmit=e=>{e.preventDefault();unlock($("passcode").value)};
 $("lockBtn").onclick=lock;
 document.querySelectorAll("[data-admin]").forEach(b=>b.onclick=()=>{

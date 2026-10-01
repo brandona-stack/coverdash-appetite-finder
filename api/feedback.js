@@ -1,4 +1,4 @@
-// POST /api/feedback              -> anyone: add feedback
+// POST /api/feedback   (passcode)  -> add feedback
 // GET  /api/feedback  (passcode)  -> list feedback, newest first
 // POST /api/feedback {action:'status', id, status} (passcode) -> mark new / done
 // POST /api/feedback {action:'delete', id}          (passcode) -> delete
@@ -28,6 +28,7 @@ module.exports = wrap(async (req, res) => {
     return send(res, 200, { ok: true });
   }
 
+  if (!(await getRole(req))) return send(res, 401, { error: 'Wrong passcode' });
   const message = clip(b.message, 2000).trim();
   if (!message) return send(res, 400, { error: 'Please add a message.' });
   const count = await redis('HLEN', KEY);

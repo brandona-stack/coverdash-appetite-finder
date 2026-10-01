@@ -105,7 +105,16 @@
 </main>
 
 <main class="wrap view" id="view-feedback" hidden>
-  <section class="card panel">
+  <section class="card panel" id="fbLock">
+    <h2>Feedback</h2>
+    <p class="muted">Enter your passcode to send feedback.</p>
+    <form id="fbLockForm" class="lock">
+      <input id="fbPasscode" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode">
+      <button type="submit" class="btn primary">Unlock</button>
+      <span id="fbLockStatus" class="status" role="status"></span>
+    </form>
+  </section>
+  <section class="card panel" id="fbPanel" hidden>
     <h2>Tell us what worked and what didn't</h2>
     <p class="muted">Feedback goes to the team that maintains this tool. Wrong carrier, a premium that was way off, a class you couldn't find: it all helps.</p>
     <form id="fbForm" novalidate>

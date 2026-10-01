@@ -36,7 +36,7 @@ AEs describe the business in plain English, for example "fixes leaky pipes" or "
 To set a rate by hand, add it to `COMMISSION_OVERRIDES` in `build_data.py`, for example `{'Chubb': {'GENERAL_LIABILITY': 35}}`. The site sorts by commission % by default.
 
 ## Feedback and Rules tabs
-- **Feedback:** anyone can send feedback, and the current search can be attached to it. Items are stored in Upstash Redis through `api/feedback.js`.
+- **Feedback:** sending feedback requires a passcode (0930 or 1776, with the same lockout as the Rules tab). The current search can be attached to it. Items are stored in Upstash Redis through `api/feedback.js`.
 - **Rules:** this tab is passcode-protected. It lists every rule and has a form to add or edit rules, plus the feedback inbox. `api/rules.js` stores the rules list, and every visitor loads it. The five rule types are exclude, sub % limit, commission %, note and preferred. Each rule can be limited to certain policy types, states, NAICS prefixes, sub % or revenue. Until someone saves for the first time, the built-in rules in `public/engine.js` (`DEFAULT_RULES`) apply. Every save also keeps the previous version under `rules:history:v1`, with the last 50 saved.
 
 ### One-time setup in Vercel
