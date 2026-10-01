@@ -3,8 +3,10 @@
 // Vercel sets either KV_REST_API_URL/KV_REST_API_TOKEN or UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN.
 const crypto = require('crypto');
 
-const URL_ = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Vercel may add a custom prefix (e.g. STORAGE_KV_REST_API_URL), so look for any matching name.
+const envEnding = suffixes => { for (const sfx of suffixes) { const k = Object.keys(process.env).find(n => n === sfx || n.endsWith('_' + sfx)); if (k && process.env[k]) return process.env[k]; } return ''; };
+const URL_ = envEnding(['KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL']);
+const TOKEN = envEnding(['KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN']);
 
 async function redis(...cmd) {
   if (!URL_ || !TOKEN) { const e = new Error('storage_not_configured'); e.status = 503; throw e; }
